@@ -1,0 +1,27 @@
+name: Release
+
+# Pushing a tag such as v0.1.0 builds every app for every computer type and attaches the
+# program files to a GitHub release of that name.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile --os='*' --cpu='*' --libc='*'
+      - run: bun run check
+      - run: bun scripts/build.ts
+      - run: ./dist/phosphor-dashboard-linux-x64 --help
+      - run: cd dist && sha256sum phosphor-* > SHA256SUMS
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

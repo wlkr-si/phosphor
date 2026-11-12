@@ -106,6 +106,10 @@ bun scripts/build.ts
 `dist/` then holds one file per app and computer type, such as
 `phosphor-dashboard-linux-x64`. Each runs on its own, with nothing else installed.
 
+Ready-made program files are on the
+[releases page](https://github.com/wlkr-si/phosphor/releases). Pushing a version tag such as
+`v0.1.0` builds and publishes them.
+
 ## Checks
 
 `bun run check` type-checks and runs the tests. `scripts/shot.sh out.png` photographs the
