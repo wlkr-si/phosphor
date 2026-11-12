@@ -1,0 +1,29 @@
+{
+  "title": "PHOSPHOR STATUS",
+  "label": "PHOSPHOR",
+  "speed": 1.5,
+  "screen": "color",
+  "case": "beige",
+  "size": 0.9,
+  "quietHours": "",
+  "cards": [
+    { "id": "this-computer", "type": "machine", "title": "This computer", "color": "green", "source": { "system": true } },
+    { "id": "server", "type": "machine", "title": "Server", "color": "cyan", "source": { "demo": "server" } },
+    { "id": "workers", "type": "dots", "title": "Workers", "color": "magenta", "source": { "demo": "workers" } },
+    { "id": "services", "type": "list", "title": "Services", "color": "cyan", "source": { "demo": "services" } },
+    { "id": "deploys", "type": "list", "title": "Recent deploys", "color": "amber", "source": { "demo": "deploys" } },
+    { "id": "projects", "type": "progress", "title": "Projects", "color": "blue", "source": { "demo": "projects" } },
+    { "id": "health", "type": "checks", "title": "Health", "color": "green", "source": { "demo": "health" } }
+  ],
+  "layout": [
+    { "height": 2, "columns": [["this-computer"], ["server"]] },
+    {
+      "height": 5,
+      "columns": [
+        { "width": 26, "cards": ["workers", "services"] },
+        { "width": 37, "cards": ["deploys"] },
+        { "width": 37, "cards": ["projects", "health"] }
+      ]
+    }
+  ]
+}

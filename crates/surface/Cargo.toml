@@ -1,9 +1,0 @@
-[package]
-name = "phosphor-surface"
-edition.workspace = true
-license.workspace = true
-version.workspace = true
-
-[dependencies]
-libc = "0.2.191"
-phosphor-kernel = { path = "../../crates/kernel" }

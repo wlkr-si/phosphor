@@ -1,9 +1,4 @@
-/target
-target/
-lab/lab
-lab/bytes
-*.ppm
-rigs/apple-terminal/fb
-rigs/apple-terminal/out-*
-rigs/apple-terminal/lab-*
-rigs/apple-terminal/*.terminal
+node_modules/
+dist/
+shots/
+*.log

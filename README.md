@@ -1,100 +1,98 @@
 # Phosphor
 
-Phosphor puts a moving picture onto a plain terminal using only ordinary characters, and
-proves what the terminal really showed by photographing and filming the window.
+Animations for your terminal, built on [OpenTUI](https://github.com/anomalyco/opentui).
 
-No image protocol. Nothing to install in the terminal. One small program.
+![The screensaver in Apple's Terminal](docs/screensaver.png)
 
-![The benchmark in Apple's Terminal, photographed](docs/evidence/bounce/quarter-font12-t3.0.png)
+## Screensaver
 
-That is a photograph of Apple's Terminal. Every letter, bar and edge is made of block
-characters. The pink squares in the corners are marks the checker uses to line the photograph
-up with the picture that was meant.
-
-## The idea
-
-A terminal is a grid of cells. Each cell shows one character in two colours. Some characters
-are blocks that fill part of a cell, so a cell can be split into dots: 1 × 2, 2 × 2, 2 × 3 or
-2 × 4. That makes a terminal a small pixel screen with one rule: two colours per cell.
-
-Phosphor draws everything into a canvas of dots, text included. For each cell it picks the
-block and the two colours closest to the dots underneath, sends only the cells that changed,
-and paces itself to what the terminal can really paint.
-
-Each terminal is different, so Phosphor keeps a **profile** of each one: which blocks it
-draws, which shortcuts it gets wrong, what it charges in time for bytes and colour changes,
-and how often it paints. `CONTEXT.md` defines every word used here and in the code.
-
-## Try it
+A retro computer drifts around the terminal and bounces off the edges. Its screen is a
+status board made of cards that you choose: your servers, your services, your builds,
+anything a script can print.
 
 ```
-cargo build --release
-target/release/phosphor play bounce          # q quits
-target/release/phosphor play develop picture.png --thing
+bun install
+bun run screensaver
 ```
 
-`play bounce` shows the benchmark: a retro computer with a live status screen drifting around
-the window. `play develop` shows a large picture arriving coarse and sharpening while a small
-square keeps moving.
+- Drag the computer to move it. Let go mid-drag to throw it.
+- Click a card to fill the screen with it. Click again to go back.
+- Scroll, or press `+` and `-`, to change the speed.
+- `space` pauses, `s` changes the screen colour, `c` the case colour, `1`–`9` shows one
+  card, `esc` shows them all, and `q` quits.
 
-## What has been measured
+Out of the box it shows example cards with made-up data. The **This computer** card is
+real and shows your own computer's numbers.
 
-On one Mac (macOS 27.2, M1 Max), by photographing and filming the real window. *Accepted*
-means the terminal took frames at that rate. *Seen* means a film shows them.
+### Your own cards
 
-| | Apple's Terminal 2.15 | Ghostty 1.4.0 |
+Copy [`apps/screensaver/example.json`](apps/screensaver/example.json) to
+`~/.config/phosphor/screensaver.json` (or pass `--settings file.json`) and edit it.
+
+Each card has a **type** and a **source**:
+
+```json
+{ "id": "api", "type": "machine", "title": "API server", "color": "cyan",
+  "source": { "url": "https://status.example.com/api.json", "every": 30 } }
+```
+
+| Type | Draws | Data |
 |---|---|---|
-| Wrong dots in photographs of the benchmark | 0 in 12 of 12 cases | not photographed |
-| Blocks it draws | halves and quarters | all four |
-| A near-empty test pattern sent at 60 a second | seen at about 22 | seen at 50 to 57 |
-| The colour benchmark sent at 60 a second | seen at 14 to 17 | seen at 53 to 55 on the finest blocks |
-| The colour benchmark paced at 14 a second | every frame seen, 5 films of 5 | — |
+| `machine` | processor, memory and disk bars, a line of facts, a processor chart | `{ cpu, memory: {used, total}, disk: {used, total}, facts, history }` |
+| `list` | rows with a coloured tag, a label, a detail and a note on the right | `{ items: [{ tag, tone, label, detail, right }] }` |
+| `progress` | progress bars, then facts and notes | `{ items: [{ label, done, total }], facts, lines }` |
+| `checks` | groups of checks, failures first | `{ groups: [{ name, checks: [{ name, ok, detail }] }] }` |
+| `dots` | a block per worker, coloured by state | `{ groups: [{ name, units: ["good", "busy", "bad"], note }] }` |
+| `text` | lines of text | `{ lines: ["...", { text, tone }] }` |
 
-Apple's Terminal reads frames at 60 a second and paints over most of them before they reach
-the screen. So Phosphor paces it at 14, where every frame sent is seen. The spacing there is
-close to even, not even. Details, methods and every number: `docs/measurements/`.
+A **tone** is `good`, `bad`, `busy`, `warn`, `dim` or `plain`. The full shapes are in
+[`apps/screensaver/data.ts`](apps/screensaver/data.ts).
 
-## Known limits
-
-- The smallest step is one dot. A smaller font means smaller dots and more cells to paint.
-- Two colours per cell. Half blocks avoid the problem; finer blocks can bleed.
-- Text drawn from dots is larger than the terminal's own text.
-- Ghostty's prices are not measured yet, so the governor is far too cautious there and
-  crushes colour.
-- Only two terminals have been measured, on one computer. The witness (photographs and film)
-  runs on macOS only.
-- This is early software. Expect things to change.
-
-## The parts
-
-| Part | Its job | Where |
+| Source | Reads | Refreshes |
 |---|---|---|
-| Composition | What should be seen, and how it changes | `crates/compose` |
-| Foundry | Fonts and pictures into dots | `crates/foundry` |
-| Presentation | The best picture a surface can carry in its budget | `crates/fit`, `crates/encode`, `crates/govern` |
-| Surface | One real terminal, known truthfully | `crates/surface` |
-| Witness | What was really shown, by photograph and film | `crates/witness` |
-| Bench | A strict pretend terminal for tests | `crates/bench` |
-| Kernel | The few types all parts share | `crates/kernel` |
-| The program | `phosphor` | `crates/cli` |
-| The benchmark app | Drawn with Phosphor, not part of it | `apps/bounce` |
+| `{ "demo": "name" }` | made-up data that moves | every second |
+| `{ "system": true }` | this computer's processor, memory and disk | every second |
+| `{ "url": "…", "headers": {…} }` | JSON from a web address | every 30 s |
+| `{ "file": "status.json" }` | JSON or plain lines from a file | every 5 s |
+| `{ "command": "./my-script" }` | JSON or plain lines a command prints | every 30 s |
 
-`docs/architecture.md` shows how they join. `lab/` and `rigs/` hold the throwaway experiments
-the design came from.
+Add `"every": seconds` to change how often a source refreshes, and `"path": "a.b[0]"` to
+take one part of the data. Cards with the same source share one fetch, so one script can
+feed every card: print `{ "web": {…}, "db": {…} }` and give each card its `path`.
 
-## How it was built
+The `layout` puts cards in rows of columns. Heights and widths are shares of the screen:
 
-Phosphor was written by AI agents working in parallel from written issues, each owning one
-part, with a shared vocabulary and a small shared kernel agreed first. Issue numbers such as
-"#46" in the documents refer to that private build log, not to this repository's issues.
+```json
+"layout": [
+  { "height": 2, "columns": [["web"], ["db"]] },
+  { "height": 5, "columns": [{ "width": 30, "cards": ["jobs", "health"], "heights": [1, 2] }, ["deploys"]] }
+]
+```
+
+Leave `layout` out and the cards are placed three to a row. The other settings are
+`title`, `label` (the text on the computer's chin), `speed`, `screen` (`color`, `green`,
+`amber` or `white`), `case` (`beige`, `graphite`, `white` or `rainbow`), `size` (the
+computer's share of the window, 0.5 to 1) and `quietHours` (such as `"23:00-07:00"`, when
+the screen goes dark).
+
+## Building a program file
+
+```
+bun install --os='*' --cpu='*'
+bun scripts/build.ts
+```
+
+`dist/` then holds one file per app and computer type, such as
+`phosphor-screensaver-linux-x64`. Each runs on its own, with nothing else installed.
 
 ## Checks
 
-Every pull request, and every push to `main`, runs `cargo fmt --all -- --check`,
-`cargo clippy --workspace -- -D warnings` and `cargo test --workspace` on GitHub's runners.
-Tests that need a screen are marked `#[ignore]` and do not run there.
+`bun run check` type-checks and runs the tests. `scripts/shot.sh out.png` photographs the
+screensaver in Apple's Terminal.
+
+The earlier version of Phosphor, a terminal drawing engine written in Rust, is kept under
+the `rust-engine-final` tag.
 
 ## Licence
 
-MIT. See `LICENSE`. JetBrains Mono, used as a test typeface, is under the SIL Open Font
-License; its licence sits beside each copy.
+MIT. See `LICENSE`.

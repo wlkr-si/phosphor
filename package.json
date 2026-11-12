@@ -1,0 +1,20 @@
+{
+  "name": "phosphor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Terminal animations built on OpenTUI.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "screensaver": "bun apps/screensaver/main.ts",
+    "check": "tsc --noEmit && bun test",
+    "build": "bun scripts/build.ts"
+  },
+  "dependencies": {
+    "@opentui/core": "0.8.4"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.0"
+  }
+}
