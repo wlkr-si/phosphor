@@ -10,7 +10,7 @@ Read `CONTEXT.md` first and use its words.
   `scripts/shot.sh shots/name.png` opens one test window, photographs only that window and
   closes it. One test window at a time; never capture the whole screen.
 - `bun scripts/build.ts` builds program files into `dist/`. Run
-  `bun install --os='*' --cpu='*'` once first so every computer type's native part is there.
+  `bun install --os='*' --cpu='*' --libc='*'` once first so every computer type's native part is there.
 - This repository is public. Never commit real machine names, addresses, tokens or job
   names; use the example and demo data.
 - Delete anything temporary you create, including `shots/` and `dist/`.

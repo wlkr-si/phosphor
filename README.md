@@ -78,7 +78,7 @@ the screen goes dark).
 ## Building a program file
 
 ```
-bun install --os='*' --cpu='*'
+bun install --os='*' --cpu='*' --libc='*'
 bun scripts/build.ts
 ```
 

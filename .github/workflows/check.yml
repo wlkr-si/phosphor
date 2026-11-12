@@ -21,7 +21,7 @@ jobs:
         with:
           bun-version: 1.4.4
       # Every computer type's native part, so program files can be built for all of them.
-      - run: bun install --frozen-lockfile --os='*' --cpu='*'
+      - run: bun install --frozen-lockfile --os='*' --cpu='*' --libc='*'
       - run: bun run check
       - name: Build a program file
         run: bun scripts/build.ts --target linux-x64 && ./dist/phosphor-screensaver-linux-x64 --help

@@ -1,6 +1,6 @@
 // Build every app into one program file per computer type, in dist/.
 // usage: bun scripts/build.ts [app ...] [--target linux-x64,darwin-arm64]
-// Needs the native parts for every target: run `bun install --os='*' --cpu='*'` first.
+// Needs the native parts for every target: run `bun install --os='*' --cpu='*' --libc='*'` first.
 import { readdirSync, existsSync, rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
