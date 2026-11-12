@@ -20,7 +20,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
+      # Every computer type's native part, so program files can be built for all of them.
+      - run: bun install --frozen-lockfile --os='*' --cpu='*'
       - run: bun run check
       - name: Build a program file
         run: bun scripts/build.ts --target linux-x64 && ./dist/phosphor-screensaver-linux-x64 --help
