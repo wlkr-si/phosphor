@@ -4,12 +4,22 @@
  */
 
 const SLIDE_MS = 900;
+/** Values that change more often than this slide only briefly, so each tick still reads. */
+const QUICK_GAP_MS = 1500;
+const QUICK_SLIDE_MS = 200;
 const GLOW_MS = 2600;
 
 const ease = (t: number) => 1 - (1 - t) ** 3;
 
+interface Slide {
+  from: number;
+  to: number;
+  at: number;
+  ms: number;
+}
+
 export class Anim {
-  private slides = new Map<string, { from: number; to: number; at: number }>();
+  private slides = new Map<string, Slide>();
   private seen = new Map<string, Set<string>>();
   /** The frame each group was first drawn in: everything in that first drawing is not new. */
   private born = new Map<string, number>();
@@ -30,12 +40,13 @@ export class Anim {
   value(key: string, target: number): number {
     const s = this.slides.get(key);
     if (!s) {
-      this.slides.set(key, { from: target, to: target, at: 0 });
+      this.slides.set(key, { from: target, to: target, at: 0, ms: SLIDE_MS });
       return target;
     }
     if (s.to !== target) {
       s.from = this.current(s);
       s.to = target;
+      s.ms = s.at && this.now - s.at < QUICK_GAP_MS ? QUICK_SLIDE_MS : SLIDE_MS;
       s.at = this.now;
     }
     const v = this.current(s);
@@ -43,8 +54,8 @@ export class Anim {
     return v;
   }
 
-  private current(s: { from: number; to: number; at: number }): number {
-    const t = Math.min(1, (this.now - s.at) / SLIDE_MS);
+  private current(s: Slide): number {
+    const t = Math.min(1, (this.now - s.at) / s.ms);
     return t >= 1 ? s.to : s.from + (s.to - s.from) * ease(t);
   }
 
