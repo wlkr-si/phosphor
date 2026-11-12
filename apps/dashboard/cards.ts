@@ -124,6 +124,11 @@ function num(v: number): string {
   return v >= 100 || Number.isInteger(v) ? Math.round(v).toString() : v.toFixed(1);
 }
 
+/** An amount that changes: always one decimal below 100, so the text keeps its width as it moves. */
+function moving(v: number): string {
+  return v >= 100 ? Math.round(v).toString() : v.toFixed(1);
+}
+
 /** Draw a card: a rounded border in its colour with its title, and its data inside. */
 export function drawCard(buf: OptimizedBuffer, r: Rect, card: CardSettings, reading: Reading, p: Palette, anim: Anim): void {
   if (r.w < 8 || r.h < 3) return;
@@ -176,7 +181,7 @@ function machine(g: Region, m: MachineData, accent: string): void {
   }
   const amount = (a: Amount, key: string) => {
     const used = g.anim.value(`${g.id}:${key}`, a.used);
-    return { pct: (used / Math.max(a.total, 1e-9)) * 100, text: `${num(used)}/${num(a.total)} ${a.unit ?? "GB"}` };
+    return { pct: (used / Math.max(a.total, 1e-9)) * 100, text: `${moving(used)}/${num(a.total)} ${a.unit ?? "GB"}` };
   };
   const rows: { label: string; pct: number; text: string }[] = [];
   if (typeof m.cpu === "number") {
