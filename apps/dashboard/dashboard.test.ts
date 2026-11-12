@@ -211,3 +211,15 @@ test("changed values slide; new rows glow, but the first drawing does not", () =
   expect(a.value("cpu", 50)).toBe(50);
   expect(a.glow("jobs", "three")).toBe(0);
 });
+
+test("values that change every half second slide only briefly, so each tick shows", () => {
+  const a = new Anim();
+  a.frame(0);
+  a.value("cpu", 10);
+  a.frame(1000);
+  a.value("cpu", 20); // the first change after a long rest slides slowly
+  a.frame(1500);
+  a.value("cpu", 30); // half a second later: a quick slide
+  a.frame(1750);
+  expect(a.value("cpu", 30)).toBe(30);
+});
