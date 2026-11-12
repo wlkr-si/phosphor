@@ -10,6 +10,7 @@ import { Anim } from "./anim.ts";
 import { Saver, EFFECT_NAMES, EFFECT_SECONDS } from "../../src/saver.ts";
 import { pixels } from "../../src/pixelfont.ts";
 import { artPixels, parseArt } from "../../src/art.ts";
+import { blockWidth } from "../../src/blocktext.ts";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -127,6 +128,12 @@ test("pictures drawn in block characters become square pixels, two to a cell", (
   expect([cols, rows]).toEqual([3, 4]);
   const on = new Set(px.map((p) => `${p.col},${p.row}`));
   expect([...on].sort()).toEqual(["0,0", "0,1", "1,0", "1,3", "2,2", "2,3"]);
+});
+
+test("block letters are whole cells, two to a pixel, with narrow colons", () => {
+  expect(blockWidth("1")).toBe(6);
+  expect(blockWidth("1:2")).toBe(6 + 2 + 2 + 2 + 6);
+  expect(blockWidth("10:48:12")).toBe(6 * 6 + 2 * 2 + 7 * 2);
 });
 
 test("the screensaver shows its pictures in turn, leaving out any too wide for the window", () => {

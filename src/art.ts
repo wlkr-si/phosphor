@@ -65,3 +65,4 @@ export function drawArt(buf: OptimizedBuffer, art: Art, x: number, y: number, co
     }),
   );
 }
+

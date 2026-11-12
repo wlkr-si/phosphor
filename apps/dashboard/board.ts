@@ -1,6 +1,6 @@
 import { TextAttributes, type OptimizedBuffer } from "@opentui/core";
-import { bigText, bigWidth } from "../../src/bigtext.ts";
 import { drawArt, type Art } from "../../src/art.ts";
+import { BLOCK_ROWS, blockText, blockWidth } from "../../src/blocktext.ts";
 import { rgb } from "../../src/color.ts";
 import type { Rect } from "./computer.ts";
 import type { Palette } from "./theme.ts";
@@ -81,18 +81,15 @@ export function drawBoard(
   const inner = { x: screen.x + 2, y: screen.y + 1, w: screen.w - 4, h: screen.h - 2 };
   if (inner.w < 10 || inner.h < 4) return [];
   const clock = notice ?? now.toTimeString().slice(0, 8);
-  // Big letters for the title and clock when there is room, as on the old status screens.
-  const title = s.title.toUpperCase();
-  // The logo needs the cards to keep most of the screen, and the clock room beside it.
-  const showLogo = !!logo && inner.h >= logo.h * 5 && logo.w + bigWidth(clock) + 4 <= inner.w;
-  const big = inner.h >= 16 && bigWidth(title) + bigWidth(clock) + 4 <= inner.w;
-  const headH = showLogo ? logo!.h : big ? 2 : 1;
-  if (showLogo) {
-    drawArt(buf, logo!, inner.x, inner.y, p.ink, p.screen);
-    bigText(buf, clock, inner.x + inner.w - bigWidth(clock), inner.y + headH - 2, p.clock, p.screen);
-  } else if (big) {
-    bigText(buf, title, inner.x, inner.y, p.ink, p.screen);
-    bigText(buf, clock, inner.x + inner.w - bigWidth(clock), inner.y, p.clock, p.screen);
+  // Block letters for the title (or the logo) and the clock when there is room.
+  const clockW = blockWidth(clock);
+  const showLogo = !!logo && inner.h >= logo.h * 5 && logo.w + clockW + 4 <= inner.w;
+  const big = !showLogo && inner.h >= 20 && blockWidth(s.title) + clockW + 4 <= inner.w;
+  const headH = showLogo ? Math.max(logo!.h, BLOCK_ROWS) : big ? BLOCK_ROWS : 1;
+  if (showLogo || big) {
+    if (showLogo) drawArt(buf, logo!, inner.x, inner.y, p.ink, p.screen);
+    else blockText(buf, s.title, inner.x, inner.y, p.ink);
+    blockText(buf, clock, inner.x + inner.w - clockW, inner.y + headH - BLOCK_ROWS, p.clock);
   } else {
     const head = new Region(buf, { ...inner, h: 1 }, p, anim, "head");
     head.text(0, 0, s.title.slice(0, Math.max(0, inner.w - clock.length - 2)), p.ink, TextAttributes.BOLD);
