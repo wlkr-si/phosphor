@@ -19,7 +19,7 @@ done
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 mkdir -p "$(dirname "$OUT")"; [[ "$OUT" == */ ]] && mkdir -p "$OUT"
 LIFE=$((WAIT + 5))
-RUN=${PHOSPHOR_BIN:-bun apps/screensaver/main.ts}
+RUN=${PHOSPHOR_BIN:-bun apps/dashboard/main.ts}
 CMD="cd '$ROOT' && $RUN --seconds $LIFE $* ; exit"
 ID=$(osascript - "$CMD" "$W" "$H" <<'OSA'
 on run argv

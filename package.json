@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "screensaver": "bun apps/screensaver/main.ts",
+    "dashboard": "bun apps/dashboard/main.ts",
     "check": "tsc --noEmit && bun test",
     "build": "bun scripts/build.ts"
   },

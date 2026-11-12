@@ -18,6 +18,7 @@ export async function launch(
   const renderer = await createCliRenderer({
     exitOnCtrlC: false,
     useMouse: true,
+    enableMouseMovement: true,
     targetFps: 30,
     maxFps: 30,
     screenMode: "alternate-screen",

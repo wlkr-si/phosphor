@@ -21,10 +21,7 @@ export interface Palette {
 const ROOM = "#08090b";
 
 export const SCREENS = ["color", "green", "amber", "white"] as const;
-export const CASES = ["beige", "graphite", "white", "rainbow"] as const;
-
-/** Old plastics for the rainbow case: a new one on every bounce. */
-const RAINBOW = ["#c9c1a9", "#a9c4b0", "#a9b8c9", "#c0aac6", "#c9aaa6", "#c8c29c"];
+export const CASES = ["beige", "graphite", "white"] as const;
 
 const CASE_COLOURS: Record<string, string> = { beige: "#c9c1a9", graphite: "#55585e", white: "#dedcd4" };
 
@@ -75,9 +72,8 @@ function screenColours(screen: string): Omit<Palette, "room" | "case" | "caseLig
   };
 }
 
-export function palette(screen: string, caseName: string, bounces: number): Palette {
-  const base =
-    caseName === "rainbow" ? RAINBOW[bounces % RAINBOW.length]! : (CASE_COLOURS[caseName] ?? CASE_COLOURS.beige!);
+export function palette(screen: string, caseName: string): Palette {
+  const base = CASE_COLOURS[caseName] ?? CASE_COLOURS.beige!;
   const darkCase = caseName === "graphite";
   return {
     room: ROOM,

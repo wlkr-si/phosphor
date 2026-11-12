@@ -12,7 +12,7 @@ mkdir -p "$OUT"
 BEFORE=$(osascript -e 'POSIX path of (path to frontmost application as text)' 2>/dev/null || true)
 trap 'osascript -e "tell application \"Ghostty\" to quit" 2>/dev/null; [ -n "$BEFORE" ] && open -a "$BEFORE"' EXIT
 open -na /Applications/Ghostty.app --args --window-width=200 --window-height=56 --font-size=11 \
-  --command="/bin/bash -lc 'cd $ROOT && bun apps/screensaver/main.ts --seconds $((WAIT + 6)) $*'"
+  --command="/bin/bash -lc 'cd $ROOT && bun apps/dashboard/main.ts --seconds $((WAIT + 6)) $*'"
 WINID=""
 for _ in $(seq 1 40); do
   WINID=$(osascript -l JavaScript -e 'ObjC.import("CoreGraphics"); const a = ObjC.castRefToObject($.CGWindowListCopyWindowInfo(1, 0)); let id = ""; for (let i = 0; i < a.count; i++) { const w = a.objectAtIndex(i); if (ObjC.unwrap(w.objectForKey("kCGWindowOwnerName")) === "Ghostty" && ObjC.unwrap(w.objectForKey("kCGWindowLayer")) === 0) id = String(ObjC.unwrap(w.objectForKey("kCGWindowNumber"))); } id' 2>/dev/null || true)

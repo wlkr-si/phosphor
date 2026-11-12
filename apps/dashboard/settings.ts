@@ -35,13 +35,17 @@ export interface Settings {
   title: string;
   /** Small text on the computer's chin. */
   label: string;
-  /** "glide": rest, then glide smoothly to a new place. "drift": move all the time, slowly. */
-  motion: string;
-  /** How far it glides, or how fast it drifts in cells per second. 0 holds it still. */
-  speed: number;
+  /** Seconds with no mouse or keys before the screensaver starts. */
+  idle: number;
+  /** Seconds the screensaver runs before the dashboard comes back. 0 turns it off. */
+  screensaver: number;
+  /** The big title the screensaver shows. Empty for the label. */
+  saverText: string;
+  /** Which screensaver effects to use: rain, decrypt, beams, swarm. Empty for all. */
+  effects: string[];
   /** "color", "green", "amber" or "white": the screen's ink. */
   screen: string;
-  /** "beige", "graphite", "white" or "rainbow" (a new colour on every bounce). */
+  /** "beige", "graphite" or "white". */
   case: string;
   /** The computer's share of the window, 0.5 to 1. */
   size: number;
@@ -55,18 +59,20 @@ export interface Settings {
 const DEFAULTS: Omit<Settings, "cards"> = {
   title: "PHOSPHOR STATUS",
   label: "PHOSPHOR",
-  motion: "glide",
-  speed: 1.5,
+  idle: 30,
+  screensaver: 30,
+  saverText: "",
+  effects: [],
   screen: "color",
   case: "beige",
-  size: 0.9,
+  size: 1,
   quietHours: "",
 };
 
 /** The settings file used when none is named: the first that exists. */
 export function defaultSettingsPath(): string | null {
   const xdg = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
-  const p = join(xdg, "phosphor", "screensaver.json");
+  const p = join(xdg, "phosphor", "dashboard.json");
   return existsSync(p) ? p : null;
 }
 
@@ -89,7 +95,9 @@ function normalise(raw: Partial<Settings>): Settings {
   if (typeof raw !== "object" || raw === null) throw new Error("settings must be a JSON object");
   const s: Settings = { ...DEFAULTS, ...raw, cards: [] } as Settings;
   s.size = Math.min(1, Math.max(0.5, Number(s.size) || DEFAULTS.size));
-  s.speed = Math.max(0, Number(s.speed) || 0);
+  s.idle = Math.max(1, Number(s.idle) || DEFAULTS.idle);
+  s.screensaver = Math.max(0, Number(s.screensaver ?? DEFAULTS.screensaver) || 0);
+  s.effects = Array.isArray(s.effects) ? s.effects.map(String) : [];
   const seen = new Set<string>();
   for (const [i, c] of (raw.cards ?? []).entries()) {
     if (!c || typeof c !== "object") throw new Error(`card ${i + 1} must be an object`);

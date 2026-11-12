@@ -1,11 +1,12 @@
 {
   "title": "PHOSPHOR STATUS",
   "label": "PHOSPHOR",
-  "motion": "glide",
-  "speed": 1.5,
+  "idle": 30,
+  "screensaver": 30,
+  "saverText": "",
   "screen": "color",
   "case": "beige",
-  "size": 0.9,
+  "size": 1,
   "quietHours": "",
   "cards": [
     { "id": "this-computer", "type": "machine", "title": "This computer", "color": "green", "source": { "system": true } },
