@@ -76,6 +76,7 @@ export function drawBoard(
   notice: string | null,
   anim: Anim,
   logo: Art | null = null,
+  offset = 0,
 ): Placed[] {
   buf.fillRect(screen.x, screen.y, screen.w, screen.h, rgb(p.screen));
   const inner = { x: screen.x + 2, y: screen.y + 1, w: screen.w - 4, h: screen.h - 2 };
@@ -100,6 +101,6 @@ export function drawBoard(
   const area = { x: inner.x, y: inner.y + headH + 1, w: inner.w, h: inner.h - headH - 1 };
   const zoomedCard = zoomed ? s.cards.find((c) => c.id === zoomed) : undefined;
   const placed = zoomedCard ? [{ card: zoomedCard, rect: area }] : place(area, s);
-  for (const pl of placed) drawCard(buf, pl.rect, pl.card, read(pl.card), p, anim);
+  for (const pl of placed) drawCard(buf, pl.rect, pl.card, read(pl.card), p, anim, !!zoomedCard, offset);
   return placed;
 }

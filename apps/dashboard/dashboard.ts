@@ -3,6 +3,7 @@ import { rgb } from "../../src/color.ts";
 import { Saver } from "../../src/saver.ts";
 import { artPixels } from "../../src/art.ts";
 import { Art, drawChin, geometry, type Rect } from "./computer.ts";
+import { cardContent } from "./cards.ts";
 import { drawBoard, type Placed } from "./board.ts";
 import { CASES, SCREENS, palette, type Palette } from "./theme.ts";
 import { Feeds } from "./sources.ts";
@@ -42,6 +43,7 @@ export class Dashboard extends Renderable {
   private placed: Placed[] = [];
   private boardAt = { x: 0, y: 0 };
   private zoomed: string | null = null;
+  private offset = 0;
   private notice: { text: string; until: number } | null = null;
   private mode: Mode = "board";
   private modeAt = performance.now();
@@ -181,7 +183,7 @@ export class Dashboard extends Renderable {
       this.boardSecond = second;
       this.anim.frame(performance.now());
       const notice = this.notice && this.notice.until > Date.now() ? this.notice.text : null;
-      this.placed = drawBoard(this.board, { x: 0, y: 0, w: sw, h: sh }, this.s, p, (c) => this.feeds.get(c), now, this.zoomed, notice, this.anim, this.pictures.logo);
+      this.placed = drawBoard(this.board, { x: 0, y: 0, w: sw, h: sh }, this.s, p, (c) => this.feeds.get(c), now, this.zoomed, notice, this.anim, this.pictures.logo, this.offset);
     }
     this.boardAt = { x: at.x + g.screen.x, y: at.y + g.screen.y };
     buf.drawFrameBuffer(this.boardAt.x, this.boardAt.y, this.board);
@@ -197,7 +199,9 @@ export class Dashboard extends Renderable {
     const sleeping = this.mode !== "board";
     this.wake();
     if (sleeping) return; // A key that wakes the dashboard does nothing else.
-    if (name === "space") this.sleep();
+    if (this.zoomed && ["up", "down", "pageup", "pagedown", "home", "end"].includes(name)) {
+      this.scroll(name === "home" ? -Infinity : name === "end" ? Infinity : (name === "up" || name === "pageup" ? -1 : 1) * (name.startsWith("page") ? this.pageSize() : 1));
+    } else if (name === "space") this.sleep();
     else if (name === "s") {
       this.s.screen = SCREENS[(SCREENS.indexOf(this.s.screen as never) + 1) % SCREENS.length]!;
       this.say(`SCREEN ${this.s.screen.toUpperCase()}`);
@@ -210,6 +214,19 @@ export class Dashboard extends Renderable {
 
   private zoom(id: string | null): void {
     this.zoomed = id;
+    this.offset = 0;
+    this.invalidate();
+  }
+
+  private pageSize(): number {
+    return Math.max(1, (this.placed[0]?.rect.h ?? 3) - 2);
+  }
+
+  private scroll(delta: number): void {
+    const card = this.s.cards.find((c) => c.id === this.zoomed);
+    if (!card) return;
+    const { rows } = cardContent(card, this.feeds.get(card), true, Math.max(1, (this.placed[0]?.rect.w ?? 8) - 4));
+    this.offset = Math.max(0, Math.min(Math.max(0, (rows?.length ?? 0) - this.pageSize()), this.offset + delta));
     this.invalidate();
   }
 
@@ -231,7 +248,12 @@ export class Dashboard extends Renderable {
     }
     const sleeping = this.mode !== "board";
     this.wake();
-    if (sleeping || e.type !== "up") return;
+    if (sleeping) return;
+    if (e.type === "scroll" && this.zoomed) {
+      this.scroll(e.scroll?.direction === "up" ? -3 : e.scroll?.direction === "down" ? 3 : 0);
+      return;
+    }
+    if (e.type !== "up") return;
     const hit = this.inspect().cards.find((pl) => this.inside(e, pl.rect));
     this.zoom(this.zoomed ? null : (hit?.card.id ?? null));
   }

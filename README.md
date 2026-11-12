@@ -22,6 +22,7 @@ bun run dashboard
 ```
 
 - Click a card to fill the screen with it. Click again to go back.
+- In a filled list or text card, scroll with the wheel, arrows, Page Up/Down or Home/End.
 - `space` starts the screensaver now, `s` changes the screen colour, `c` the case colour,
   `1`–`9` shows one card, `esc` shows them all, and `q` quits.
 
@@ -48,6 +49,15 @@ Each card has a **type** and a **source**:
 | `checks` | groups of checks, failures first | `{ groups: [{ name, checks: [{ name, ok, detail }] }] }` |
 | `dots` | a block per worker, coloured by state | `{ groups: [{ name, units: ["good", "busy", "bad"], note }] }` |
 | `text` | lines of text | `{ lines: ["...", { text, tone }] }` |
+
+Any card payload can include `expanded: { type, data }` to show different content when
+it fills the screen, using any card type. For example, a summary can expand into a full
+list. Filled `list` and `text` cards scroll when their rows exceed the available height;
+the border shows the visible row range. Without `expanded`, the same data fills the screen.
+
+```json
+{ "lines": ["3 services"], "expanded": { "type": "text", "data": { "lines": ["api running", "worker running", "backup waiting"] } } }
+```
 
 A **tone** is `good`, `bad`, `busy`, `warn`, `dim` or `plain`. The full shapes are in
 [`apps/dashboard/data.ts`](apps/dashboard/data.ts).
