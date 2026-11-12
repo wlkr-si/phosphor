@@ -1,0 +1,10 @@
+[package]
+name = "phosphor-foundry"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+fontdue = "0.9.5"
+phosphor-kernel = { path = "../../crates/kernel" }
+png = "0.18.1"

@@ -1,0 +1,7 @@
+[package]
+name = "phosphor-kernel"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]

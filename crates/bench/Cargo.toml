@@ -1,0 +1,8 @@
+[package]
+name = "phosphor-bench"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+phosphor-kernel = { path = "../../crates/kernel" }

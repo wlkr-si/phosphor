@@ -1,0 +1,13 @@
+[package]
+name = "phosphor-witness"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+phosphor-kernel = { path = "../../crates/kernel" }
+png = "0.18.1"
+# witness-bounce works out the picture meant the way the program does: compose, then fit.
+phosphor-compose = { path = "../../crates/compose" }
+phosphor-fit = { path = "../../crates/fit" }
+phosphor-bounce = { path = "../../apps/bounce" }

@@ -1,0 +1,9 @@
+[package]
+name = "phosphor-bounce"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+phosphor-foundry = { path = "../../crates/foundry" }
+phosphor-kernel = { path = "../../crates/kernel" }

@@ -1,0 +1,8 @@
+what,bytes,cells,runs,crowding,median_ms
+full colour both colours on every cell,250000,7200,7200,1152000,120
+same with every colour instruction sent twice,478000,7200,7200,1152000,152
+256 colours both on every cell,158000,7200,7200,1152000,69
+8 colours both on every cell,80000,7200,7200,1152000,74
+full colour changing every 8 cells,38000,7200,900,18000,4.2
+full colour changing every 40 cells,27000,7200,180,720,1.7
+fixed colours only the shapes changing,22000,7200,0,0,1.0
