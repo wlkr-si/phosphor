@@ -1,6 +1,6 @@
 import type { OptimizedBuffer } from "@opentui/core";
 import { mix, rgb } from "./color.ts";
-import { pixels } from "./pixelfont.ts";
+import { pixels, type Pixel } from "./pixelfont.ts";
 
 /**
  * A full-screen screensaver: a big title made and unmade by effects that use every cell.
@@ -14,6 +14,13 @@ export interface SaverColours {
   glow: string;
   dim: string;
   accents: string[];
+}
+
+/** What the screensaver spells out: square pixels on a grid of `cols` x `rows`. */
+export interface Title {
+  pixels: Pixel[];
+  cols: number;
+  rows: number;
 }
 
 /** How long each effect runs, in seconds. */
@@ -233,16 +240,23 @@ const swarm: Effect = (s, t) => {
 const EFFECTS: Record<string, Effect> = { rain, decrypt, beams, swarm };
 export const EFFECT_NAMES = Object.keys(EFFECTS);
 
+/** Room for a title: it is drawn at least one cell tall per pixel and two wide. */
+const fits = (t: Title, W: number, H: number) => t.cols * 2 <= W * 0.82 && t.rows <= H * 0.5;
+
 export class Saver {
-  private layout: Layout | null = null;
-  private key = "";
+  private titles: Title[];
+  private layouts = new Map<string, Layout>();
   private order: string[] = [];
   private started = 0;
 
+  /** `titles` are shown in turn, one per effect: plain text, or pictures as pixels. */
   constructor(
-    private text: string,
+    titles: string | (string | Title)[],
     private readonly effects: string[] = EFFECT_NAMES,
-  ) {}
+  ) {
+    this.titles = (Array.isArray(titles) ? titles : [titles]).map((t) => (typeof t === "string" ? pixels(t) : t));
+    if (!this.titles.length) this.titles = [pixels("")];
+  }
 
   /** Begin from the first effect, in a new random order. */
   start(now: number): void {
@@ -259,11 +273,23 @@ export class Saver {
     return { effect: this.order[round % this.order.length] ?? "rain", t: secs - round * EFFECT_SECONDS, round };
   }
 
+  /** Which title a round shows in a window this size: the next of those that fit. */
+  titleFor(round: number, W: number, H: number): number {
+    const room = this.titles.map((t, i) => (fits(t, W, H) ? i : -1)).filter((i) => i >= 0);
+    if (!room.length) {
+      // None fit: the narrowest, drawn as large as the window allows.
+      let best = 0;
+      this.titles.forEach((t, i) => t.cols < this.titles[best]!.cols && (best = i));
+      return best;
+    }
+    return room[round % room.length]!;
+  }
+
   /** Draw the whole screen. `caption` (such as the time) sits small under the title. */
   draw(buf: OptimizedBuffer, now: number, c: SaverColours, caption = ""): void {
-    const L = this.lay(buf.width, buf.height);
-    buf.fillRect(0, 0, buf.width, buf.height, rgb(c.bg));
     const { effect, t, round } = this.at(now);
+    const L = this.lay(buf.width, buf.height, this.titleFor(round, buf.width, buf.height));
+    buf.fillRect(0, 0, buf.width, buf.height, rgb(c.bg));
     EFFECTS[effect]!(new Scene(buf, L, c, round * 31 + 7), t);
     if (caption && L.box.y + L.box.h + 2 < L.H) {
       const x = Math.max(0, Math.floor((L.W - caption.length) / 2));
@@ -271,15 +297,13 @@ export class Saver {
     }
   }
 
-  setText(text: string): void {
-    if (text !== this.text) [this.text, this.key] = [text, ""];
-  }
-
-  /** The title as big as fits: each pixel two cells wide and one tall, times a scale. */
-  private lay(W: number, H: number): Layout {
-    const key = `${W}x${H}:${this.text}`;
-    if (this.layout && key === this.key) return this.layout;
-    const { pixels: px, cols, rows } = pixels(this.text);
+  /** A title as big as fits: each pixel two cells wide and one tall, times a scale. */
+  private lay(W: number, H: number, which: number): Layout {
+    const key = `${W}x${H}:${which}`;
+    const known = this.layouts.get(key);
+    if (known) return known;
+    if (this.layouts.size > 16) this.layouts.clear();
+    const { pixels: px, cols, rows } = this.titles[which]!;
     let k = 1;
     while (cols * 2 * (k + 1) <= W * 0.82 && rows * (k + 1) <= H * 0.5) k++;
     const bw = 2 * k;
@@ -298,8 +322,8 @@ export class Saver {
             cells.push({ x, y });
           }
     }
-    this.layout = { W, H, cells, blocks, box, lit };
-    this.key = key;
-    return this.layout;
+    const layout = { W, H, cells, blocks, box, lit };
+    this.layouts.set(key, layout);
+    return layout;
   }
 }

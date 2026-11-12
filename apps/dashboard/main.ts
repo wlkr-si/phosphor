@@ -26,9 +26,9 @@ try {
   console.error(`phosphor: ${(e as Error).message}`);
   process.exit(1);
 }
-const { settings, base } = loaded;
+const { settings, base, pictures } = loaded;
 await launch({ seconds: Number(opts.get("seconds")) || undefined }, (renderer) => {
-  const dash = new Dashboard(renderer, renderer, settings, base);
+  const dash = new Dashboard(renderer, renderer, settings, base, pictures);
   renderer.root.add(dash);
   if (opts.has("sleep")) dash.sleep();
   return () => dash.stop();

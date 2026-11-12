@@ -5,9 +5,9 @@ import { Dashboard } from "../apps/dashboard/dashboard.ts";
 import { loadSettings } from "../apps/dashboard/settings.ts";
 
 const [cols = "263", rows = "67", file] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
-const { settings, base } = loadSettings(file ?? null);
+const { settings, base, pictures } = loadSettings(file ?? null);
 const t = await createTestRenderer({ width: Number(cols), height: Number(rows) });
-const saver = new Dashboard(t.renderer, t.renderer, settings, base);
+const saver = new Dashboard(t.renderer, t.renderer, settings, base, pictures);
 t.renderer.root.add(saver);
 await Bun.sleep(1500);
 const times: number[] = [];

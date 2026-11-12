@@ -1,5 +1,6 @@
 import { TextAttributes, type OptimizedBuffer } from "@opentui/core";
 import { bigText, bigWidth } from "../../src/bigtext.ts";
+import { drawArt, type Art } from "../../src/art.ts";
 import { rgb } from "../../src/color.ts";
 import type { Rect } from "./computer.ts";
 import type { Palette } from "./theme.ts";
@@ -63,7 +64,7 @@ export function place(area: Rect, s: Settings): Placed[] {
   return out;
 }
 
-/** The inside of the screen: a title and clock, a rule, then the cards (or one card, zoomed). */
+/** The inside of the screen: a title (or logo) and clock, a rule, then the cards (or one card, zoomed). */
 export function drawBoard(
   buf: OptimizedBuffer,
   screen: Rect,
@@ -74,6 +75,7 @@ export function drawBoard(
   zoomed: string | null,
   notice: string | null,
   anim: Anim,
+  logo: Art | null = null,
 ): Placed[] {
   buf.fillRect(screen.x, screen.y, screen.w, screen.h, rgb(p.screen));
   const inner = { x: screen.x + 2, y: screen.y + 1, w: screen.w - 4, h: screen.h - 2 };
@@ -81,9 +83,14 @@ export function drawBoard(
   const clock = notice ?? now.toTimeString().slice(0, 8);
   // Big letters for the title and clock when there is room, as on the old status screens.
   const title = s.title.toUpperCase();
+  // The logo needs the cards to keep most of the screen, and the clock room beside it.
+  const showLogo = !!logo && inner.h >= logo.h * 5 && logo.w + bigWidth(clock) + 4 <= inner.w;
   const big = inner.h >= 16 && bigWidth(title) + bigWidth(clock) + 4 <= inner.w;
-  const headH = big ? 2 : 1;
-  if (big) {
+  const headH = showLogo ? logo!.h : big ? 2 : 1;
+  if (showLogo) {
+    drawArt(buf, logo!, inner.x, inner.y, p.ink, p.screen);
+    bigText(buf, clock, inner.x + inner.w - bigWidth(clock), inner.y + headH - 2, p.clock, p.screen);
+  } else if (big) {
     bigText(buf, title, inner.x, inner.y, p.ink, p.screen);
     bigText(buf, clock, inner.x + inner.w - bigWidth(clock), inner.y, p.clock, p.screen);
   } else {

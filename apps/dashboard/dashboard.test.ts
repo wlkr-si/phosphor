@@ -2,13 +2,17 @@ import { afterEach, expect, test } from "bun:test";
 import { OptimizedBuffer } from "@opentui/core";
 import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testing";
 import { Dashboard, quiet } from "./dashboard.ts";
-import { loadSettings, type Settings } from "./settings.ts";
+import { loadSettings, type Pictures, type Settings } from "./settings.ts";
 import { place } from "./board.ts";
 import { pick } from "./sources.ts";
 import { clip, wrap } from "./cards.ts";
 import { Anim } from "./anim.ts";
 import { Saver, EFFECT_NAMES, EFFECT_SECONDS } from "../../src/saver.ts";
 import { pixels } from "../../src/pixelfont.ts";
+import { artPixels, parseArt } from "../../src/art.ts";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 let open: { t: TestRendererSetup; dash: Dashboard } | null = null;
 afterEach(async () => {
@@ -17,11 +21,11 @@ afterEach(async () => {
   open = null;
 });
 
-async function start(edit: (s: Settings) => void = () => {}, w = 160, h = 50) {
+async function start(edit: (s: Settings) => void = () => {}, w = 160, h = 50, pictures?: Pictures) {
   const { settings, base } = loadSettings(null);
   edit(settings);
   const t = await createTestRenderer({ width: w, height: h, useMouse: true });
-  const dash = new Dashboard(t.renderer, t.renderer, settings, base);
+  const dash = new Dashboard(t.renderer, t.renderer, settings, base, pictures);
   t.renderer.root.add(dash);
   open = { t, dash };
   await t.renderOnce();
@@ -114,6 +118,39 @@ test("the pixel alphabet spells words", () => {
   const { cols, rows, pixels: px } = pixels("HI");
   expect([cols, rows]).toEqual([11, 7]);
   expect(px.length).toBe(17 + 11);
+});
+
+test("pictures drawn in block characters become square pixels, two to a cell", () => {
+  const art = parseArt("\n█▀ \n ▄█\n\n");
+  expect([art.w, art.h]).toEqual([3, 2]);
+  const { pixels: px, cols, rows } = artPixels(art);
+  expect([cols, rows]).toEqual([3, 4]);
+  const on = new Set(px.map((p) => `${p.col},${p.row}`));
+  expect([...on].sort()).toEqual(["0,0", "0,1", "1,0", "1,3", "2,2", "2,3"]);
+});
+
+test("the screensaver shows its pictures in turn, leaving out any too wide for the window", () => {
+  const wide = artPixels(parseArt("█".repeat(70)));
+  const small = artPixels(parseArt("██\n██"));
+  const saver = new Saver([wide, "HI", small]);
+  expect([0, 1, 2].map((r) => saver.titleFor(r, 200, 50))).toEqual([0, 1, 2]);
+  expect([0, 1, 2].map((r) => saver.titleFor(r, 100, 50))).toEqual([1, 2, 1]);
+});
+
+test("a logo takes the title's place when there is room, read from beside the settings file", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "phosphor-test-"));
+  try {
+    writeFileSync(join(dir, "logo.txt"), "▄▀▄▀▄▀▄▀▄▀\n██████████\n▀▄▀▄▀▄▀▄▀▄\n");
+    writeFileSync(join(dir, "s.json"), JSON.stringify({ logo: "logo.txt", saverArt: ["logo.txt"], cards: [] }));
+    const { pictures } = loadSettings(join(dir, "s.json"));
+    expect(pictures.logo?.h).toBe(3);
+    expect(pictures.saver.length).toBe(1);
+    const { t } = await start(undefined, 160, 50, pictures);
+    expect(t.captureCharFrame()).toContain("▄▀▄▀▄▀▄▀▄▀");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  expect(() => loadSettings(join(dir, "s.json"))).toThrow();
 });
 
 test("layouts share the room, with uneven heights in a column", () => {

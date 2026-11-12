@@ -1,12 +1,13 @@
 import { OptimizedBuffer, Renderable, type CliRenderer, type MouseEvent, type RenderContext } from "@opentui/core";
 import { rgb } from "../../src/color.ts";
 import { Saver } from "../../src/saver.ts";
+import { artPixels } from "../../src/art.ts";
 import { Art, drawChin, geometry, type Rect } from "./computer.ts";
 import { drawBoard, type Placed } from "./board.ts";
 import { CASES, SCREENS, palette, type Palette } from "./theme.ts";
 import { Feeds } from "./sources.ts";
 import { Anim } from "./anim.ts";
-import type { Settings } from "./settings.ts";
+import type { Pictures, Settings } from "./settings.ts";
 
 /** True when `now` falls inside "HH:MM-HH:MM" (which may run past midnight). */
 export function quiet(range: string, now: Date): boolean {
@@ -53,10 +54,11 @@ export class Dashboard extends Renderable {
     private readonly renderer: CliRenderer,
     private readonly s: Settings,
     base: string,
+    private readonly pictures: Pictures = { logo: null, saver: [] },
   ) {
     super(ctx, { id: "dashboard", width: "100%", height: "100%" });
     this.art = new Art(renderer);
-    this.saver = new Saver(s.saverText || s.label, s.effects);
+    this.saver = new Saver(pictures.saver.length ? pictures.saver.map(artPixels) : s.saverText || s.label, s.effects);
     this.feeds = new Feeds(s.cards, base, () => this.invalidate());
     this.feeds.start();
     this.timer = setInterval(() => this.tick(), 1000 / FPS);
@@ -179,7 +181,7 @@ export class Dashboard extends Renderable {
       this.boardSecond = second;
       this.anim.frame(performance.now());
       const notice = this.notice && this.notice.until > Date.now() ? this.notice.text : null;
-      this.placed = drawBoard(this.board, { x: 0, y: 0, w: sw, h: sh }, this.s, p, (c) => this.feeds.get(c), now, this.zoomed, notice, this.anim);
+      this.placed = drawBoard(this.board, { x: 0, y: 0, w: sw, h: sh }, this.s, p, (c) => this.feeds.get(c), now, this.zoomed, notice, this.anim, this.pictures.logo);
     }
     this.boardAt = { x: at.x + g.screen.x, y: at.y + g.screen.y };
     buf.drawFrameBuffer(this.boardAt.x, this.boardAt.y, this.board);

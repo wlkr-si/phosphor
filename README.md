@@ -81,6 +81,21 @@ window, 0.5 to 1), `quietHours` (such as `"23:00-07:00"`, when the screen goes d
 `saverText` (its title; the label by default) and `effects` (any of `rain`, `decrypt`,
 `beams` and `swarm`; all by default).
 
+### Your own logo
+
+Draw a logo in a text file with the block characters `█`, `▀` and `▄`, one cell per
+character, and name it in the settings. File names are found from the settings file's
+folder.
+
+```json
+"logo": "logo.txt",
+"saverArt": ["logo.txt", "symbol.txt"]
+```
+
+`logo` takes the title's place at the top of the screen when there is room. `saverArt` gives
+the screensaver pictures to show instead of its title, one per effect in turn, made large out
+of whole cells.
+
 ## Building a program file
 
 ```

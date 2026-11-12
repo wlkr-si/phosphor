@@ -23,6 +23,10 @@ decrypt, beams, swarm) that each run ten seconds. It starts after `idle` seconds
 mouse or keys, runs for `screensaver` seconds, and stops the moment someone moves the
 mouse, clicks or presses a key. A **wipe** is the bright line that sweeps between the two.
 
+**Picture.** A logo drawn in a text file with block characters (`█ ▀ ▄`), each cell two
+square pixels. The settings' `logo` replaces the title at the top of the screen; `saverArt`
+gives the screensaver pictures to show in turn instead of its title.
+
 **Computer.** The drawing: a beige monitor on a desktop case with vents and two drive
 slots. Its **screen** is the dark area inside the monitor; its **label** is the text on
 the monitor's chin.

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { loadArt, type Art } from "../../src/art.ts";
 import example from "./example.json" with { type: "json" };
 
 /** Where a card's data comes from. Cards with the same source share one fetch. */
@@ -39,8 +40,12 @@ export interface Settings {
   idle: number;
   /** Seconds the screensaver runs before the dashboard comes back. 0 turns it off. */
   screensaver: number;
+  /** A text file with a logo drawn in block characters, shown at the top instead of the title. */
+  logo: string;
   /** The big title the screensaver shows. Empty for the label. */
   saverText: string;
+  /** Text files with pictures for the screensaver to show in turn, instead of `saverText`. */
+  saverArt: string[];
   /** Which screensaver effects to use: rain, decrypt, beams, swarm. Empty for all. */
   effects: string[];
   /** "color", "green", "amber" or "white": the screen's ink. */
@@ -61,7 +66,9 @@ const DEFAULTS: Omit<Settings, "cards"> = {
   label: "PHOSPHOR",
   idle: 30,
   screensaver: 30,
+  logo: "",
   saverText: "",
+  saverArt: [],
   effects: [],
   screen: "color",
   case: "beige",
@@ -76,17 +83,31 @@ export function defaultSettingsPath(): string | null {
   return existsSync(p) ? p : null;
 }
 
-/** Read settings from a file, or the built-in example when `path` is null. */
-export function loadSettings(path: string | null): { settings: Settings; base: string } {
-  if (!path) return { settings: normalise(example as unknown as Partial<Settings>), base: process.cwd() };
-  const full = resolve(path);
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(full, "utf8"));
-  } catch (e) {
-    throw new Error(`could not read ${full}: ${(e as Error).message}`);
+/** The pictures the settings name, read from their files. */
+export interface Pictures {
+  logo: Art | null;
+  saver: Art[];
+}
+
+/**
+ * Read settings from a file, or the built-in example when `path` is null, with the pictures
+ * they name. Files are found from the settings file's folder.
+ */
+export function loadSettings(path: string | null): { settings: Settings; base: string; pictures: Pictures } {
+  let raw: unknown = example;
+  let base = process.cwd();
+  if (path) {
+    const full = resolve(path);
+    try {
+      raw = JSON.parse(readFileSync(full, "utf8"));
+    } catch (e) {
+      throw new Error(`could not read ${full}: ${(e as Error).message}`);
+    }
+    base = dirname(full);
   }
-  return { settings: normalise(raw as Partial<Settings>), base: dirname(full) };
+  const settings = normalise(raw as Partial<Settings>);
+  const art = (p: string) => loadArt(resolve(base, p.replace(/^~(?=\/)/, homedir())));
+  return { settings, base, pictures: { logo: settings.logo ? art(settings.logo) : null, saver: settings.saverArt.map(art) } };
 }
 
 const TYPES: CardType[] = ["machine", "list", "progress", "checks", "dots", "text"];
@@ -98,6 +119,8 @@ function normalise(raw: Partial<Settings>): Settings {
   s.idle = Math.max(1, Number(s.idle) || DEFAULTS.idle);
   s.screensaver = Math.max(0, Number(s.screensaver ?? DEFAULTS.screensaver) || 0);
   s.effects = Array.isArray(s.effects) ? s.effects.map(String) : [];
+  s.logo = typeof s.logo === "string" ? s.logo : "";
+  s.saverArt = Array.isArray(s.saverArt) ? s.saverArt.map(String) : [];
   const seen = new Set<string>();
   for (const [i, c] of (raw.cards ?? []).entries()) {
     if (!c || typeof c !== "object") throw new Error(`card ${i + 1} must be an object`);
