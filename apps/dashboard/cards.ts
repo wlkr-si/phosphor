@@ -135,15 +135,17 @@ export function cardContent(card: CardSettings, reading: Reading, expanded: bool
   const kind = content?.type ?? card.type;
   let data = content?.data ?? reading.data;
   if (expanded && kind === "text" && data) {
-    data = { lines: ((data as TextData).lines ?? []).flatMap((line) => {
+    const lines = (data as TextData).lines;
+    data = { lines: (Array.isArray(lines) ? lines : []).flatMap((line) => {
       const fact = typeof line === "string" ? { text: line } : line;
+      if (!fact || typeof fact.text !== "string") return [];
       const indent = (fact.text.match(/^\s*/)?.[0] ?? "").slice(0, Math.max(0, cells - 1));
       const lines = wrap(fact.text, cells - indent.length, Number.MAX_SAFE_INTEGER);
       return (lines.length ? lines : [""]).map((text) => ({ ...fact, text: indent + text }));
     }) };
   }
   const rows = kind === "list" ? (data as ListData | null)?.items : kind === "text" ? (data as TextData | null)?.lines : undefined;
-  return { kind, data, rows };
+  return { kind, data, rows: Array.isArray(rows) ? rows : undefined };
 }
 
 /** Draw a card: a rounded border in its colour with its title, and its data inside. */
