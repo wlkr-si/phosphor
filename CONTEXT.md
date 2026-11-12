@@ -15,12 +15,18 @@ code, issues and pull requests.
 **Shared pieces.** Code more than one app can use: colours, big letters, the dot picture,
 the bounce. They live in `src/`.
 
-**Screensaver.** The first app: a retro computer that drifts around the terminal and
+**Screensaver.** The first app: a retro computer that glides around the terminal and
 bounces off its edges, its screen showing cards.
 
 **Computer.** The drawing: a beige monitor on a desktop case with vents and two drive
 slots. Its **screen** is the dark area inside the monitor; its **label** is the text on
 the monitor's chin.
+
+**Glide and drift.** How the computer moves. It glides: rests, then moves quickly to a new
+place. Or it drifts: moves slowly all the time.
+
+**Block steps.** How finely a terminal can place an edge inside a cell: eighths in
+terminals that draw block characters themselves, whole cells in Apple's Terminal.
 
 **Card.** One bordered box on the screen with a title, such as Workhorse or Health. A card
 has a **type**, which decides how it draws, and a **source**, which says where its data
@@ -45,7 +51,10 @@ addresses and job names never go in this repository.
 
 ## Rules that always hold
 
-1. Apple's Terminal is the reference terminal. If it looks right there, it looks right.
-2. Apps draw only what the terminal shows well. Apple's Terminal draws the full-block
-   character smaller than a cell, so solid areas are coloured spaces, never `█`.
+1. Check every change in Apple's Terminal and in a terminal that draws block characters
+   itself, such as Ghostty. They differ, and both have to look right.
+2. Apps draw only what the terminal shows well. Apple's Terminal draws block characters
+   from the font: `█` comes out smaller than a cell, and partial blocks leave a hairline.
+   Solid areas are coloured spaces, and partial blocks are used only where the terminal
+   draws them exactly.
 3. The repository is public. Private data lives in private settings files elsewhere.

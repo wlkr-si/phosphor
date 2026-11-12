@@ -6,6 +6,7 @@ import type { Palette } from "./theme.ts";
 import type { CardSettings, Column, Row, Settings } from "./settings.ts";
 import type { Reading } from "./sources.ts";
 import { Region, drawCard } from "./cards.ts";
+import type { Anim } from "./anim.ts";
 
 /** Where each card sits on the screen, in cells. */
 export interface Placed {
@@ -72,6 +73,7 @@ export function drawBoard(
   now: Date,
   zoomed: string | null,
   notice: string | null,
+  anim: Anim,
 ): Placed[] {
   buf.fillRect(screen.x, screen.y, screen.w, screen.h, rgb(p.screen));
   const inner = { x: screen.x + 2, y: screen.y + 1, w: screen.w - 4, h: screen.h - 2 };
@@ -85,7 +87,7 @@ export function drawBoard(
     bigText(buf, title, inner.x, inner.y, p.ink, p.screen);
     bigText(buf, clock, inner.x + inner.w - bigWidth(clock), inner.y, p.clock, p.screen);
   } else {
-    const head = new Region(buf, { ...inner, h: 1 }, p);
+    const head = new Region(buf, { ...inner, h: 1 }, p, anim, "head");
     head.text(0, 0, s.title.slice(0, Math.max(0, inner.w - clock.length - 2)), p.ink, TextAttributes.BOLD);
     head.text(inner.w - clock.length, 0, clock, p.clock, TextAttributes.BOLD);
   }
@@ -94,6 +96,6 @@ export function drawBoard(
   const area = { x: inner.x, y: inner.y + headH + 1, w: inner.w, h: inner.h - headH - 1 };
   const zoomedCard = zoomed ? s.cards.find((c) => c.id === zoomed) : undefined;
   const placed = zoomedCard ? [{ card: zoomedCard, rect: area }] : place(area, s);
-  for (const pl of placed) drawCard(buf, pl.rect, pl.card, read(pl.card), p);
+  for (const pl of placed) drawCard(buf, pl.rect, pl.card, read(pl.card), p, anim);
   return placed;
 }

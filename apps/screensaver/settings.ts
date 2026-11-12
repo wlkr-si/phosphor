@@ -35,7 +35,9 @@ export interface Settings {
   title: string;
   /** Small text on the computer's chin. */
   label: string;
-  /** How fast the computer drifts, in cells per second. 0 holds it still. */
+  /** "glide": rest, then glide smoothly to a new place. "drift": move all the time, slowly. */
+  motion: string;
+  /** How far it glides, or how fast it drifts in cells per second. 0 holds it still. */
   speed: number;
   /** "color", "green", "amber" or "white": the screen's ink. */
   screen: string;
@@ -53,6 +55,7 @@ export interface Settings {
 const DEFAULTS: Omit<Settings, "cards"> = {
   title: "PHOSPHOR STATUS",
   label: "PHOSPHOR",
+  motion: "glide",
   speed: 1.5,
   screen: "color",
   case: "beige",

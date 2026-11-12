@@ -8,7 +8,12 @@ Read `CONTEXT.md` first and use its words.
 - A pull request body starts `Closes #<n>` when it closes an issue.
 - Look at your change in Apple's Terminal before calling it done:
   `scripts/shot.sh shots/name.png` opens one test window, photographs only that window and
-  closes it. One test window at a time; never capture the whole screen.
+  closes it. One test window at a time; never capture the whole screen. To check motion,
+  `scripts/shot.sh shots/film/ 10` takes stills for ten seconds; it brings the window to the
+  front, because Apple's Terminal stops painting a hidden window, then gives the front back.
+- Apple's Terminal draws block characters from the font, slightly off, so partial blocks
+  leave hairlines there. Check motion in Ghostty too (`scripts/shot-ghostty.sh`), which
+  draws them exactly.
 - `bun scripts/build.ts` builds program files into `dist/`. Run
   `bun install --os='*' --cpu='*' --libc='*'` once first so every computer type's native part is there.
 - This repository is public. Never commit real machine names, addresses, tokens or job

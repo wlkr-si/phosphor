@@ -1,9 +1,10 @@
 import { TextAttributes, type OptimizedBuffer } from "@opentui/core";
-import { rgb } from "../../src/color.ts";
+import { mix, rgb } from "../../src/color.ts";
 import type { Rect } from "./computer.ts";
 import type { Palette } from "./theme.ts";
 import type { CardSettings } from "./settings.ts";
 import type { Reading } from "./sources.ts";
+import type { Anim } from "./anim.ts";
 import type {
   Amount,
   ChecksData,
@@ -17,6 +18,42 @@ import type {
 } from "./data.ts";
 
 const BOLD = TextAttributes.BOLD;
+const MARK = "■";
+
+const width = (s: string) => [...s].length;
+
+/** Shorten `s` to `n` cells, at a word break when one is near, ending in "…". */
+export function clip(s: string, n: number): string {
+  if (n <= 0) return "";
+  const chars = [...s];
+  if (chars.length <= n) return s;
+  if (n === 1) return "…";
+  const cut = chars.slice(0, n - 1).join("");
+  const space = cut.lastIndexOf(" ");
+  return (space >= n * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:/-]+$/, "") + "…";
+}
+
+/** Break `s` into lines of at most `n` cells, at spaces where it can. */
+export function wrap(s: string, n: number, maxLines: number): string[] {
+  const out: string[] = [];
+  let rest = s.trim();
+  while (rest && out.length < maxLines && n > 0) {
+    if (width(rest) <= n) {
+      out.push(rest);
+      break;
+    }
+    if (out.length === maxLines - 1) {
+      out.push(clip(rest, n));
+      break;
+    }
+    const chars = [...rest];
+    let at = chars.slice(0, n + 1).join("").lastIndexOf(" ");
+    if (at < n * 0.4) at = n;
+    out.push(chars.slice(0, at).join("").trimEnd());
+    rest = chars.slice(at).join("").trimStart();
+  }
+  return out;
+}
 
 /** A rectangle of the screen to write into, in its own coordinates, clipped to its edges. */
 export class Region {
@@ -24,6 +61,8 @@ export class Region {
     readonly buf: OptimizedBuffer,
     readonly r: Rect,
     readonly p: Palette,
+    readonly anim: Anim,
+    readonly id: string,
   ) {}
 
   get w(): number {
@@ -33,25 +72,38 @@ export class Region {
     return this.r.h;
   }
 
-  /** Write text at (col, row); returns how many cells it took. */
-  text(col: number, row: number, s: string, color: string, attrs = 0, bg = this.p.screen): number {
-    if (row < 0 || row >= this.r.h || col >= this.r.w || !s) return 0;
-    const chars = [...s];
-    const start = Math.max(0, -col);
-    const shown = chars.slice(start, start + this.r.w - Math.max(col, 0)).join("");
-    if (!shown) return 0;
-    this.buf.drawText(shown, this.r.x + Math.max(col, 0), this.r.y + row, rgb(color), rgb(bg), attrs);
-    return [...shown].length;
+  /** A smaller region inside this one. */
+  sub(x: number, y: number, w: number, h: number): Region {
+    const r = { x: this.r.x + x, y: this.r.y + y, w: Math.max(0, Math.min(w, this.r.w - x)), h: Math.max(0, Math.min(h, this.r.h - y)) };
+    return new Region(this.buf, r, this.p, this.anim, this.id);
   }
 
-  /** A line of facts, three spaces apart. */
-  facts(col: number, row: number, facts: Fact[]): number {
+  /** Write text at (col, row); returns how many cells it took. */
+  text(col: number, row: number, s: string, color: string, attrs = 0, bg = this.p.screen): number {
+    if (row < 0 || row >= this.r.h || col >= this.r.w || col < 0 || !s) return 0;
+    const shown = [...s].slice(0, this.r.w - col).join("");
+    if (!shown) return 0;
+    this.buf.drawText(shown, this.r.x + col, this.r.y + row, rgb(color), rgb(bg), attrs);
+    return width(shown);
+  }
+
+  /** Tint a row's background for a row that has just changed; returns the colour to write on. */
+  glowRow(row: number, color: string, amount: number): string {
+    if (amount <= 0 || row < 0 || row >= this.r.h) return this.p.screen;
+    const bg = mix(this.p.screen, color, 0.3 * amount);
+    this.buf.fillRect(this.r.x, this.r.y + row, this.r.w, 1, rgb(bg));
+    return bg;
+  }
+
+  /** A line of facts, three spaces apart; a fact that does not fit whole is left off. */
+  facts(col: number, row: number, facts: Fact[]): void {
     let c = col;
     for (const [i, f] of facts.entries()) {
-      if (i > 0) c += 3;
+      const gap = i > 0 ? 3 : 0;
+      if (c + gap + width(f.text) > this.r.w) break;
+      c += gap;
       c += this.text(c, row, f.text, this.p.tone(f.tone ?? "plain"));
     }
-    return c - col;
   }
 
   /** A bar `w` cells wide, filled to `pct` percent. Bars sit low in their cells so stacked bars stay apart. */
@@ -63,25 +115,18 @@ export class Region {
   }
 }
 
-function clip(s: string, n: number): string {
-  if (n <= 0) return "";
-  const chars = [...s];
-  return chars.length <= n ? s : chars.slice(0, Math.max(0, n - 1)).join("") + "…";
-}
-
 /** Green below 70%, amber below 90%, red above. */
 function level(p: Palette, pct: number): string {
   return p.tone(pct < 70 ? "good" : pct < 90 ? "warn" : "bad");
 }
 
-function amount(a: Amount): string {
-  const n = (v: number) => (v >= 100 || Number.isInteger(v) ? Math.round(v).toString() : v.toFixed(1));
-  return `${n(a.used)}/${n(a.total)} ${a.unit ?? "GB"}`;
+function num(v: number): string {
+  return v >= 100 || Number.isInteger(v) ? Math.round(v).toString() : v.toFixed(1);
 }
 
 /** Draw a card: a rounded border in its colour with its title, and its data inside. */
-export function drawCard(buf: OptimizedBuffer, r: Rect, card: CardSettings, reading: Reading, p: Palette): void {
-  if (r.w < 6 || r.h < 3) return;
+export function drawCard(buf: OptimizedBuffer, r: Rect, card: CardSettings, reading: Reading, p: Palette, anim: Anim): void {
+  if (r.w < 8 || r.h < 3) return;
   const accent = p.accent(card.color);
   const a = rgb(accent);
   const bg = rgb(p.screen);
@@ -97,13 +142,13 @@ export function drawCard(buf: OptimizedBuffer, r: Rect, card: CardSettings, read
   buf.setCell(r.x + r.w - 1, r.y, "╮", a, bg);
   buf.setCell(r.x, r.y + r.h - 1, "╰", a, bg);
   buf.setCell(r.x + r.w - 1, r.y + r.h - 1, "╯", a, bg);
-  const head = new Region(buf, { x: r.x + 2, y: r.y, w: r.w - 4, h: 1 }, p);
-  let c = head.text(0, 0, ` ${clip(card.title, r.w - 8)} `, accent, BOLD);
-  if (reading.data && reading.error) head.text(c, 0, " stale ", p.tone("warn"));
+  const head = new Region(buf, { x: r.x + 2, y: r.y, w: r.w - 4, h: 1 }, p, anim, card.id);
+  const c = head.text(0, 0, ` ${clip(card.title, r.w - 8)} `, accent, BOLD);
+  if (reading.data && reading.error && c + 8 < head.w) head.text(c, 0, " stale ", p.tone("warn"));
 
-  const inner = new Region(buf, { x: r.x + 2, y: r.y + 1, w: r.w - 4, h: r.h - 2 }, p);
+  const inner = new Region(buf, { x: r.x + 2, y: r.y + 1, w: r.w - 4, h: r.h - 2 }, p, anim, card.id);
   if (!reading.data) {
-    if (reading.error) inner.text(0, 0, clip(`Can't read: ${reading.error}`, inner.w), p.tone("bad"));
+    if (reading.error) wrap(`Can't read: ${reading.error}`, inner.w, inner.h).forEach((l, i) => inner.text(0, i, l, p.tone("bad")));
     else inner.text(0, 0, "Waiting for data…", p.dim);
     return;
   }
@@ -129,105 +174,141 @@ function machine(g: Region, m: MachineData, accent: string): void {
     g.text(0, 0, "UNREACHABLE", p.tone("bad"), BOLD);
     return;
   }
-  const valueW = 13;
-  const bw = Math.max(4, g.w - 8 - valueW);
-  let row = 0;
-  const line = (label: string, pct: number, value: string) => {
-    g.text(0, row, label, p.dim);
-    g.bar(8, row, bw, pct, level(p, pct));
-    g.text(8 + bw + 1, row, value, p.tone("plain"), BOLD);
-    row++;
+  const amount = (a: Amount, key: string) => {
+    const used = g.anim.value(`${g.id}:${key}`, a.used);
+    return { pct: (used / Math.max(a.total, 1e-9)) * 100, text: `${num(used)}/${num(a.total)} ${a.unit ?? "GB"}` };
   };
-  if (typeof m.cpu === "number") line("CPU", m.cpu, `${Math.round(m.cpu)}%`.padStart(4));
-  if (m.memory) line("Memory", (m.memory.used / Math.max(m.memory.total, 1e-9)) * 100, amount(m.memory));
-  if (m.disk) line("Disk", (m.disk.used / Math.max(m.disk.total, 1e-9)) * 100, amount(m.disk));
+  const rows: { label: string; pct: number; text: string }[] = [];
+  if (typeof m.cpu === "number") {
+    const cpu = g.anim.value(`${g.id}:cpu`, m.cpu);
+    rows.push({ label: "CPU", pct: cpu, text: `${Math.round(cpu)}%` });
+  }
+  if (m.memory) rows.push({ label: "Memory", ...amount(m.memory, "mem") });
+  if (m.disk) rows.push({ label: "Disk", ...amount(m.disk, "disk") });
+  // Room for the widest value it could show, so the bars do not change length as numbers move.
+  const widest = (a?: Amount) => (a ? width(`${num(a.total)}/${num(a.total)} ${a.unit ?? "GB"}`) : 0);
+  const valueW = Math.max(4, widest(m.memory), widest(m.disk));
+  const bw = Math.max(4, g.w - 8 - valueW - 2);
+  let row = 0;
+  for (const r of rows) {
+    g.text(0, row, r.label, p.dim);
+    g.bar(8, row, bw, r.pct, level(p, r.pct));
+    g.text(g.w - width(r.text), row, r.text, p.tone("plain"), BOLD);
+    row++;
+  }
   if (m.facts?.length) g.facts(0, row++, m.facts);
 
   // The processor chart fills the rest, newest on the right.
   const top = row + 1;
-  const rows = g.h - top;
+  const rows2 = g.h - top;
   const hist = m.history ?? [];
-  if (rows < 2 || g.w < 10) return;
+  if (rows2 < 2 || g.w < 10) return;
   g.text(0, top, "100", p.faint);
-  g.text(0, top + rows - 1, "  0", p.faint);
+  g.text(0, top + rows2 - 1, "  0", p.faint);
   const cw = g.w - 4;
-  const blocks = " ▁▂▃▄▅▆▇█";
+  const blocks = " ▁▂▃▄▅▆▇";
   for (let i = 0; i < cw; i++) {
     const v = hist[hist.length - cw + i];
-    for (let rr = 0; rr < rows; rr++) {
+    for (let rr = 0; rr < rows2; rr++) {
       const x = g.r.x + 4 + i;
-      const y = g.r.y + top + rows - 1 - rr;
-      if (v === undefined) {
-        g.buf.setCell(x, y, rr === 0 ? "▁" : " ", rgb(p.faint), rgb(p.screen));
-        continue;
-      }
-      const eighths = Math.max(0, Math.min(8, Math.round((Math.max(0, Math.min(100, v)) / 100) * rows * 8 - rr * 8)));
-      const ch = rr === 0 && eighths === 0 ? "▁" : blocks[eighths]!;
-      g.buf.setCell(x, y, ch, rgb(eighths === 0 ? p.faint : accent), rgb(p.screen));
+      const y = g.r.y + top + rows2 - 1 - rr;
+      const eighths =
+        v === undefined ? 0 : Math.max(0, Math.min(8, Math.round((Math.max(0, Math.min(100, v)) / 100) * rows2 * 8 - rr * 8)));
+      if (eighths >= 8) g.buf.setCell(x, y, " ", rgb(accent), rgb(accent));
+      else if (eighths > 0) g.buf.setCell(x, y, blocks[eighths]!, rgb(accent), rgb(p.screen));
+      else g.buf.setCell(x, y, rr === 0 ? "▁" : " ", rgb(p.track), rgb(p.screen));
     }
   }
 }
 
-function list(g: Region, d: ListData): void {
+function list(g: Region, d: ListData, accent: string): void {
   const p = g.p;
   const items = d.items ?? [];
   if (!items.length) g.text(0, 0, "none yet", p.dim);
-  const tagW = Math.max(0, ...items.map((i) => (i.tag ? [...i.tag].length + 2 : 2)));
-  const rightW = Math.min(14, Math.max(0, ...items.map((i) => (i.right ? [...i.right].length + 1 : 0))));
-  const hasDetail = items.some((i) => i.detail);
-  const labelW = hasDetail ? Math.max(8, Math.floor((g.w - tagW - rightW) * 0.6)) : g.w - tagW - rightW;
+  // Columns sized to what they hold: tag, label, detail, then the note on the right.
+  const tagW = Math.max(2, ...items.map((i) => (i.tag ? width(i.tag) + 2 : 2)));
+  const rightW = Math.min(16, Math.max(0, ...items.map((i) => (i.right ? width(i.right) : 0))));
+  const room = g.w - tagW - (rightW ? rightW + 2 : 0);
+  const longestLabel = Math.max(0, ...items.map((i) => width(i.label)));
+  const longestDetail = Math.max(0, ...items.map((i) => (i.detail ? width(i.detail) : 0)));
+  const labelW = Math.min(longestLabel, Math.floor(room * 0.65));
+  const showDetail = longestDetail > 0 && room - labelW - 2 >= Math.min(longestDetail, 8);
+  const labelRoom = showDetail ? labelW : room;
   for (const [row, it] of items.slice(0, g.h).entries()) {
     const tone = p.tone(it.tone ?? "good");
-    if (it.tag) g.text(0, row, it.tag, tone, it.tone === "bad" || it.tone === "busy" ? BOLD : 0);
-    else g.text(0, row, "█", tone);
-    g.text(tagW, row, clip(it.label, labelW - 1), p.tone("plain"));
-    if (it.detail) g.text(tagW + labelW, row, clip(it.detail, g.w - tagW - labelW - rightW - 1), p.dim);
+    const bg = g.glowRow(row, accent, g.anim.glow(g.id, `${it.tag ?? ""}|${it.label}|${it.detail ?? ""}`));
+    if (it.tag) g.text(0, row, it.tag, tone, it.tone === "bad" || it.tone === "busy" ? BOLD : 0, bg);
+    else g.text(0, row, MARK, tone, 0, bg);
+    g.text(tagW, row, clip(it.label, labelRoom), p.tone("plain"), 0, bg);
+    if (showDetail && it.detail) g.text(tagW + labelW + 2, row, clip(it.detail, room - labelW - 2), p.dim, 0, bg);
     if (it.right) {
-      const s = clip(it.right, rightW - 1);
-      g.text(g.w - [...s].length, row, s, it.tone === "bad" ? tone : p.dim);
+      const s = clip(it.right, rightW);
+      g.text(g.w - width(s), row, s, it.tone === "bad" ? tone : p.dim, 0, bg);
     }
   }
 }
 
-function progress(g: Region, d: ProgressData): void {
+function progress(g: Region, d: ProgressData, accent: string): void {
   const p = g.p;
   let row = 0;
-  const bw = Math.min(12, Math.max(4, Math.floor(g.w / 4)));
+  const bw = Math.min(12, Math.max(4, Math.floor(g.w / 5)));
+  const countW = Math.max(5, ...(d.items ?? []).map((it) => width(`${it.done}/${it.total}`)));
+  const labelX = bw + 1 + countW + 2;
   for (const it of d.items ?? []) {
-    const pct = (it.done / Math.max(it.total, 1)) * 100;
-    g.bar(0, row, bw, pct, p.tone(it.tone ?? (pct >= 100 ? "good" : "busy")));
-    const c = bw + g.text(bw, row, ` ${String(it.done).padStart(2)}/${String(it.total).padEnd(3)}`, p.tone("plain"), BOLD);
-    g.text(c + 1, row, clip(it.label, g.w - c - 1), p.tone(it.tone === "bad" ? "bad" : "plain"));
-    row++;
+    if (row >= g.h) break;
+    const done = g.anim.value(`${g.id}:${it.label}`, it.done);
+    const pct = (done / Math.max(it.total, 1)) * 100;
+    const bg = g.glowRow(row, accent, g.anim.glow(g.id, `${it.label}|${it.done}`));
+    g.bar(0, row, bw, pct, it.tone === "dim" ? p.dim : p.tone(it.tone ?? (pct >= 100 ? "good" : "busy")));
+    const count = `${Math.round(done)}/${it.total}`;
+    g.text(bw + 1 + countW - width(count), row, count, p.tone("plain"), BOLD, bg);
+    const lines = wrap(it.label, g.w - labelX, 2);
+    for (const [i, l] of lines.entries())
+      g.text(labelX, row + i, l, it.tone === "dim" ? p.dim : p.tone(it.tone === "bad" ? "bad" : "plain"), 0, i ? p.screen : bg);
+    row += Math.max(1, lines.length);
   }
-  if (d.facts?.length) g.facts(0, ++row, d.facts), row++;
-  if (d.lines?.length) text(new Region(g.buf, { ...g.r, y: g.r.y + row + 1, h: g.h - row - 1 }, g.p), { lines: d.lines });
+  if (d.facts?.length) {
+    g.facts(0, row + 1, d.facts);
+    row += 2;
+  }
+  if (d.lines?.length) text(g.sub(0, row + 1, g.w, g.h - row - 1), { lines: d.lines }, accent);
 }
 
 function checks(g: Region, d: ChecksData): void {
   const p = g.p;
   let row = 0;
   for (const grp of d.groups ?? []) {
+    if (row >= g.h) break;
     const bad = grp.checks.filter((c) => !c.ok);
     const ok = grp.checks.filter((c) => c.ok);
-    g.text(0, row, clip(grp.name, 14), p.tone("plain"), BOLD);
-    g.text(15, row, `${ok.length}/${grp.checks.length} ok`, bad.length ? p.tone("bad") : p.tone("good"), bad.length ? BOLD : 0);
+    const n = g.text(0, row, clip(grp.name, g.w - 12), p.tone("plain"), BOLD);
+    g.text(n + 2, row, `${ok.length}/${grp.checks.length} ok`, bad.length ? p.tone("bad") : p.tone("good"), bad.length ? BOLD : 0);
     row++;
     for (const c of bad) {
-      const n = g.text(0, row, "!! ", p.tone("bad"), BOLD);
-      const m = g.text(n, row, clip(c.name, 22), p.tone("plain"));
-      if (c.detail) g.text(n + m + 2, row, clip(c.detail, g.w - n - m - 2), p.dim);
+      const bg = g.glowRow(row, p.tone("bad"), g.anim.glow(g.id, `${grp.name}|${c.name}|bad`));
+      const m = g.text(0, row, "!! ", p.tone("bad"), BOLD, bg);
+      const nm = g.text(m, row, clip(c.name, g.w - m), p.tone("plain"), 0, bg);
+      const room = g.w - m - nm - 2;
+      if (c.detail && room >= 12) g.text(m + nm + 2, row, clip(c.detail, room), p.dim, 0, bg);
+      else if (c.detail && row + 1 < g.h) g.text(m, ++row, clip(c.detail, g.w - m), p.dim);
       row++;
     }
-    const per = Math.max(1, Math.floor(g.w / 16));
-    const cw = Math.floor(g.w / per);
-    ok.forEach((c, i) => {
-      const r = row + Math.floor(i / per);
-      const col = (i % per) * cw;
-      g.text(col, r, "■ ", p.tone("good"));
-      g.text(col + 2, r, clip(c.name, cw - 3), p.dim);
-    });
-    row += Math.ceil(ok.length / per) + 1;
+    // Passing checks flow along the line like words, each one whole.
+    let col = 0;
+    for (const c of ok) {
+      const name = clip(c.name, g.w - 2);
+      const need = 2 + width(name);
+      if (col > 0 && col + need > g.w) {
+        row++;
+        col = 0;
+      }
+      const glow = g.anim.glow(g.id, `${grp.name}|${c.name}|ok`);
+      const bg = glow > 0 ? mix(p.screen, p.tone("good"), 0.3 * glow) : p.screen;
+      g.text(col, row, `${MARK} `, p.tone("good"), 0, bg);
+      g.text(col + 2, row, name, p.dim, 0, bg);
+      col += need + 2;
+    }
+    row += ok.length ? 2 : 1;
   }
 }
 
@@ -235,17 +316,19 @@ function dots(g: Region, d: DotsData): void {
   const p = g.p;
   let row = 0;
   for (const grp of d.groups ?? []) {
+    if (row >= g.h) break;
     g.text(0, row, clip(grp.name, g.w), p.tone("plain"), BOLD);
     let c = 2;
-    for (const u of grp.units) c += g.text(c, row + 1, "█ ", p.tone(u as Tone));
-    if (grp.note) g.text(c + 1, row + 1, clip(grp.note, g.w - c - 1), p.dim);
+    for (const u of grp.units) c += g.text(c, row + 1, `${MARK} `, p.tone(u as Tone));
+    if (grp.note && c + 1 + width(grp.note) <= g.w) g.text(c + 1, row + 1, grp.note, p.dim);
     row += 3;
   }
 }
 
-function text(g: Region, d: TextData): void {
+function text(g: Region, d: TextData, accent: string): void {
   for (const [row, l] of (d.lines ?? []).slice(0, g.h).entries()) {
     const f = typeof l === "string" ? { text: l } : l;
-    g.text(0, row, clip(f.text, g.w), g.p.tone(f.tone ?? "plain"));
+    const bg = g.glowRow(row, accent, g.anim.glow(`${g.id}:text`, f.text));
+    g.text(0, row, clip(f.text, g.w), g.p.tone(f.tone ?? "plain"), 0, bg);
   }
 }

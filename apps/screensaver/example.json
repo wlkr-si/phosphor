@@ -1,6 +1,7 @@
 {
   "title": "PHOSPHOR STATUS",
   "label": "PHOSPHOR",
+  "motion": "glide",
   "speed": 1.5,
   "screen": "color",
   "case": "beige",

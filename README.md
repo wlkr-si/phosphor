@@ -6,9 +6,16 @@ Animations for your terminal, built on [OpenTUI](https://github.com/anomalyco/op
 
 ## Screensaver
 
-A retro computer drifts around the terminal and bounces off the edges. Its screen is a
+A retro computer glides around the terminal and bounces off the edges. Its screen is a
 status board made of cards that you choose: your servers, your services, your builds,
 anything a script can print.
+
+Text in a terminal can only sit on whole characters, so slow constant motion looks like
+steps. Instead the computer rests, then glides quickly to a new place. Its case moves by
+eighths of a character in terminals that draw block characters themselves (Ghostty, kitty,
+WezTerm, foot, VS Code and others); Apple's Terminal draws them from the font, slightly off,
+so there it moves by whole characters. Numbers and bars slide to new values, and new rows
+glow for a moment.
 
 ```
 bun install
@@ -18,8 +25,8 @@ bun run screensaver
 - Drag the computer to move it. Let go mid-drag to throw it.
 - Click a card to fill the screen with it. Click again to go back.
 - Scroll, or press `+` and `-`, to change the speed.
-- `space` pauses, `s` changes the screen colour, `c` the case colour, `1`–`9` shows one
-  card, `esc` shows them all, and `q` quits.
+- `space` pauses, `m` switches between gliding and drifting, `s` changes the screen colour,
+  `c` the case colour, `1`–`9` shows one card, `esc` shows them all, and `q` quits.
 
 Out of the box it shows example cards with made-up data. The **This computer** card is
 real and shows your own computer's numbers.
@@ -70,7 +77,9 @@ The `layout` puts cards in rows of columns. Heights and widths are shares of the
 ```
 
 Leave `layout` out and the cards are placed three to a row. The other settings are
-`title`, `label` (the text on the computer's chin), `speed`, `screen` (`color`, `green`,
+`title`, `label` (the text on the computer's chin), `motion` (`glide`, the default, or
+`drift`, which moves slowly all the time), `speed` (how far it glides, or how fast it
+drifts; 0 holds it still), `screen` (`color`, `green`,
 `amber` or `white`), `case` (`beige`, `graphite`, `white` or `rainbow`), `size` (the
 computer's share of the window, 0.5 to 1) and `quietHours` (such as `"23:00-07:00"`, when
 the screen goes dark).
@@ -88,7 +97,10 @@ bun scripts/build.ts
 ## Checks
 
 `bun run check` type-checks and runs the tests. `scripts/shot.sh out.png` photographs the
-screensaver in Apple's Terminal.
+screensaver in Apple's Terminal, and `scripts/shot.sh dir/ 10` takes stills for ten seconds
+to check motion. `scripts/shot-ghostty.sh dir/` does the same in Ghostty.
+`bun scripts/perf.ts` times drawing without a terminal, and `scripts/rate.sh dir` measures
+how many bytes a second it sends.
 
 The earlier version of Phosphor, a terminal drawing engine written in Rust, is kept under
 the `rust-engine-final` tag.

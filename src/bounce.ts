@@ -19,11 +19,20 @@ export class Bounce {
     this.aim();
   }
 
-  /** Advance `dt` seconds inside a room with `roomW` x `roomH` cells of free space. Returns true on a bounce. */
-  step(dt: number, roomW: number, roomH: number): boolean {
+  /** True while a throw is still slowing down. */
+  get throwing(): boolean {
+    return this.flinging;
+  }
+
+  /**
+   * Advance `dt` seconds inside a room with `roomW` x `roomH` cells of free space, at `pace`
+   * times the drifting speed (a throw always goes at its own speed). Returns true on a bounce.
+   */
+  step(dt: number, roomW: number, roomH: number, pace = 1): boolean {
     let bounced = false;
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
+    const k = this.flinging ? 1 : pace;
+    this.x += this.vx * dt * k;
+    this.y += this.vy * dt * k;
     if (this.x < 0) [this.x, this.vx, bounced] = [-this.x, Math.abs(this.vx), true];
     if (this.x > roomW) [this.x, this.vx, bounced] = [Math.max(0, 2 * roomW - this.x), -Math.abs(this.vx), true];
     if (this.y < 0) [this.y, this.vy, bounced] = [-this.y, Math.abs(this.vy), true];

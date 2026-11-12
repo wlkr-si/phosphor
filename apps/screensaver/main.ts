@@ -3,14 +3,15 @@ import { launch, options } from "../../src/app.ts";
 import { Screensaver } from "./screensaver.ts";
 import { defaultSettingsPath, loadSettings } from "./settings.ts";
 
-const HELP = `phosphor screensaver: a retro computer drifting around the terminal, showing your status cards.
+const HELP = `phosphor screensaver: a retro computer gliding around the terminal, showing your status cards.
 
   --settings FILE   cards and looks (default: ~/.config/phosphor/screensaver.json, else the example)
   --seconds N       quit after N seconds
 
 Drag the computer to move it, and let go mid-drag to throw it. Click a card to fill the
 screen with it; click again to go back. Scroll or + and - change the speed.
-Keys: space pause, s screen colour, c case colour, 1-9 show one card, esc all cards, q quit.`;
+Keys: space pause, m glide or drift, s screen colour, c case colour, 1-9 show one card,
+esc all cards, q quit.`;
 
 const opts = options(process.argv.slice(2));
 if (opts.has("help")) {

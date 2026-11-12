@@ -112,3 +112,71 @@ test("a bounce never leaves the room", () => {
   for (let i = 0; i < 300; i++) b.step(1 / 30, 17, 5);
   expect(Math.hypot(b.vx, b.vy * 2)).toBeCloseTo(30, 0);
 });
+
+import { placement, blockSteps } from "./computer.ts";
+import { clip, wrap } from "./cards.ts";
+import { Anim } from "./anim.ts";
+import { paintShapes } from "../../src/shapes.ts";
+import { OptimizedBuffer } from "@opentui/core";
+
+test("the case sits at eighths of a cell, the screen's text on whole cells", () => {
+  const p = placement(10.3, 4.9);
+  expect([p.cellX, p.qx, p.cellY, p.qy]).toEqual([10, 2, 4, 7]);
+  expect([p.snapX, p.snapY]).toEqual([10, 5]);
+  // On whole cells only (Apple's Terminal), there are no eighths.
+  const w = placement(10.3, 4.9, 1);
+  expect([w.qx, w.qy, w.cellX, w.cellY]).toEqual([0, 0, 10, 5]);
+  expect(blockSteps({ TERM_PROGRAM: "Apple_Terminal" })).toBe(1);
+  expect(blockSteps({ TERM_PROGRAM: "ghostty" })).toBe(8);
+});
+
+test("a rectangle edge inside a cell becomes a partial block", async () => {
+  const t = await createTestRenderer({ width: 4, height: 2 });
+  const buf = OptimizedBuffer.create(3, 2, t.renderer.widthMethod, { owner: t.renderer.nativeScene });
+  paintShapes(buf, [{ x: 0, y: 0.625, w: 1.375, h: 2, color: "#c9c1a9" }], "#000000");
+  const text = new TextDecoder().decode(buf.getRealCharBytes(true));
+  // Top row: the lower 3/8 filled. Second row: the left 3/8 of the right-hand cell.
+  expect(text.split("\n")[0]).toContain("▃");
+  expect(text.split("\n")[1]).toContain("▍");
+  buf.destroy();
+  await t.dispose();
+});
+
+test("glides start and end gently, rest between, and never leave the room", () => {
+  const b = new Bounce(1.5);
+  // Pace follows a sine: zero at the ends of a glide.
+  const paces = [0, 0.25, 0.5, 0.75, 1].map((u) => Math.sin(Math.PI * u));
+  expect(paces[0]).toBeCloseTo(0);
+  expect(paces[2]).toBeCloseTo(1);
+  b.step(1, 20, 5, 0);
+  expect([b.x, b.y]).toEqual([0, 0]);
+});
+
+test("words are cut at a space when one is near, and wrapped onto lines", () => {
+  expect(clip("paused: make WLKR.SI a remarkable software studio", 24)).toBe("paused: make WLKR.SI a…");
+  expect(clip("short", 10)).toBe("short");
+  expect(wrap("make WLKR.SI a remarkable software studio by November", 24, 2)).toEqual([
+    "make WLKR.SI a",
+    "remarkable software…",
+  ]);
+});
+
+test("changed values slide; new rows glow, but the first drawing does not", () => {
+  const a = new Anim();
+  a.frame(0);
+  expect(a.value("cpu", 10)).toBe(10);
+  expect(a.glow("jobs", "one")).toBe(0);
+  expect(a.glow("jobs", "two")).toBe(0);
+  a.frame(100);
+  const mid = a.value("cpu", 50);
+  expect(mid).toBe(10);
+  a.frame(500);
+  const later = a.value("cpu", 50);
+  expect(later).toBeGreaterThan(10);
+  expect(later).toBeLessThan(50);
+  expect(a.glow("jobs", "three")).toBeGreaterThan(0.9);
+  expect(a.busy).toBe(true);
+  a.frame(5000);
+  expect(a.value("cpu", 50)).toBe(50);
+  expect(a.glow("jobs", "three")).toBe(0);
+});
