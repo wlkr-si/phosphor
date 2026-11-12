@@ -59,4 +59,9 @@ export interface TextData {
   lines: (string | Fact)[];
 }
 
-export type CardData = MachineData | ListData | ProgressData | ChecksData | DotsData | TextData;
+type Content = MachineData | ListData | ProgressData | ChecksData | DotsData | TextData;
+
+/** Optional content shown only when a card fills the screen. */
+export type CardData = Content & {
+  expanded?: { type: "machine" | "list" | "progress" | "checks" | "dots" | "text"; data: Content };
+};

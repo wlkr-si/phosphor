@@ -223,3 +223,46 @@ test("values that change every half second slide only briefly, so each tick show
   a.frame(1750);
   expect(a.value("cpu", 30)).toBe(30);
 });
+
+test("filled content replaces the summary; every row is reachable and leaving resets the view", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "phosphor-detail-"));
+  try {
+    writeFileSync(join(dir, "data.json"), JSON.stringify({ items: [{ label: "summary only" }], expanded: {
+      type: "text", data: { lines: Array.from({ length: 120 }, (_, i) => `detail row ${String(i).padStart(3, "0")}`) },
+    } }));
+    const { t, dash } = await start((s) => {
+      s.cards = [{ id: "detail", type: "list", title: "Detail", color: "green", source: { file: join(dir, "data.json") } }];
+      s.layout = undefined;
+    });
+    await Bun.sleep(40);
+    await t.renderOnce();
+    expect(t.captureCharFrame()).toContain("summary only");
+    expect(t.captureCharFrame()).not.toContain("detail row");
+    const r = dash.inspect().cards[0]!.rect;
+    await t.mockMouse.click(r.x + 3, r.y + 2);
+    await t.renderOnce();
+    expect(t.captureCharFrame()).toContain("detail row 000");
+    expect(t.captureCharFrame()).not.toContain("summary only");
+    await t.mockMouse.scroll(r.x + 3, r.y + 2, "down");
+    await t.renderOnce();
+    expect(dash.inspect().zoomed).toBe("detail");
+    expect(t.captureCharFrame()).toContain("detail row 003");
+    expect(t.captureCharFrame()).not.toContain("detail row 000");
+    t.mockInput.pressKey("END");
+    await t.renderOnce();
+    expect(t.captureCharFrame()).toContain("detail row 119");
+    expect(t.captureCharFrame()).not.toContain("detail row 000");
+    t.mockInput.pressKey("HOME");
+    await t.renderOnce();
+    expect(t.captureCharFrame()).toContain("detail row 000");
+    t.mockInput.pressKey("ESCAPE");
+    await Bun.sleep(50);
+    await t.renderOnce();
+    expect(t.captureCharFrame()).toContain("summary only");
+    t.mockInput.pressKey("1");
+    await t.renderOnce();
+    expect(t.captureCharFrame()).toContain("detail row 000");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -129,9 +129,31 @@ function moving(v: number): string {
   return v >= 100 ? Math.round(v).toString() : v.toFixed(1);
 }
 
+/** Resolve filled content and wrap text to the available cells before scrolling it. */
+export function cardContent(card: CardSettings, reading: Reading, expanded: boolean, cells: number) {
+  const content = expanded ? reading.data?.expanded : undefined;
+  const kind = content?.type ?? card.type;
+  let data = content?.data ?? reading.data;
+  if (expanded && kind === "text" && data) {
+    const lines = (data as TextData).lines;
+    data = { lines: (Array.isArray(lines) ? lines : []).flatMap((line) => {
+      const fact = typeof line === "string" ? { text: line } : line;
+      if (!fact || typeof fact.text !== "string") return [];
+      const indent = (fact.text.match(/^\s*/)?.[0] ?? "").slice(0, Math.max(0, cells - 1));
+      const lines = wrap(fact.text, cells - indent.length, Number.MAX_SAFE_INTEGER);
+      return (lines.length ? lines : [""]).map((text) => ({ ...fact, text: indent + text }));
+    }) };
+  }
+  const rows = kind === "list" ? (data as ListData | null)?.items : kind === "text" ? (data as TextData | null)?.lines : undefined;
+  return { kind, data, rows: Array.isArray(rows) ? rows : undefined };
+}
+
 /** Draw a card: a rounded border in its colour with its title, and its data inside. */
-export function drawCard(buf: OptimizedBuffer, r: Rect, card: CardSettings, reading: Reading, p: Palette, anim: Anim): void {
+export function drawCard(buf: OptimizedBuffer, r: Rect, card: CardSettings, reading: Reading, p: Palette, anim: Anim, expanded = false, offset = 0): void {
   if (r.w < 8 || r.h < 3) return;
+  const { kind, data: resolved, rows } = cardContent(card, reading, expanded, r.w - 4);
+  let data = resolved;
+  const start = Math.max(0, Math.min(offset, Math.max(0, (rows?.length ?? 0) - (r.h - 2))));
   const accent = p.accent(card.color);
   const a = rgb(accent);
   const bg = rgb(p.screen);
@@ -151,6 +173,11 @@ export function drawCard(buf: OptimizedBuffer, r: Rect, card: CardSettings, read
   const c = head.text(0, 0, ` ${clip(card.title, r.w - 8)} `, accent, BOLD);
   if (reading.data && reading.error && c + 8 < head.w) head.text(c, 0, " stale ", p.tone("warn"));
 
+  if (expanded && rows && rows.length > r.h - 2) {
+    const range = ` ${start + 1}–${Math.min(rows.length, start + r.h - 2)}/${rows.length} `;
+    if (c + range.length < head.w) head.text(head.w - range.length, 0, range, p.dim);
+  }
+  if (expanded && rows) data = kind === "list" ? { items: (rows as ListData["items"]).slice(start) } : { lines: (rows as TextData["lines"]).slice(start) };
   const inner = new Region(buf, { x: r.x + 2, y: r.y + 1, w: r.w - 4, h: r.h - 2 }, p, anim, card.id);
   if (!reading.data) {
     if (reading.error) wrap(`Can't read: ${reading.error}`, inner.w, inner.h).forEach((l, i) => inner.text(0, i, l, p.tone("bad")));
@@ -158,7 +185,7 @@ export function drawCard(buf: OptimizedBuffer, r: Rect, card: CardSettings, read
     return;
   }
   try {
-    DRAW[card.type](inner, reading.data as never, accent);
+    DRAW[kind](inner, data as never, accent);
   } catch {
     inner.text(0, 0, `This isn't ${card.type} data.`, p.tone("bad"));
   }
